@@ -30,16 +30,49 @@ canvas {
   text-align: center; text-shadow: 0 0 10px #0a0806; line-height: 1.8;
   pointer-events: none;
 }
+/* ─── TOUCH CONTROLS ─── */
+.touch-zone {
+  position: absolute; bottom: 0; height: calc(100% - 40px);
+  pointer-events: auto; z-index: 10;
+  -webkit-user-select: none; user-select: none;
+  -webkit-touch-callout: none;
+}
+#touchLeft { left: 0; width: 50%; }
+#touchRight { right: 0; width: 50%; }
+/* Joystick base ring */
+#joystickBase {
+  position: absolute; bottom: 80px; left: 12.5%; width: 35%; aspect-ratio: 1;
+  max-width: 160px; max-height: 160px;
+  border: 2px solid rgba(184,68,42,0.25);
+  border-radius: 50%;
+  transform: translateX(-50%);
+  pointer-events: none; z-index: 11;
+  opacity: 0; transition: opacity 0.2s;
+}
+#joystickBase.active { opacity: 1; }
+/* Joystick knob */
+#joystickKnob {
+  position: absolute; top: 50%; left: 50%; width: 25%; aspect-ratio: 1;
+  max-width: 40px; max-height: 40px;
+  background: rgba(184,68,42,0.4);
+  border: 1px solid rgba(184,68,42,0.5);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  pointer-events: none; z-index: 12;
+}
 </style>
 </head>
 <body>
 <canvas id="c"></canvas>
+<div id="touchLeft" class="touch-zone"></div>
+<div id="touchRight" class="touch-zone"></div>
+<div id="joystickBase"><div id="joystickKnob"></div></div>
 <div id="hud">
   <div>
     <span class="desire-label">DESIRE</span>
     <div class="hud-bar"><div class="hud-fill" id="desireBar" style="width:100%;background:#b8442a"></div></div>
   </div>
-  <div id="hudMsg" style="color:#888">WASD move · mouse look · Click to start</div>
+  <div id="hudMsg" style="color:#888">WASD move · mouse look · tap canvas to start</div>
   <div id="fpsHUD" style="color:#555"></div>
 </div>
 <div id="msg">Loading etched textures...</div>
@@ -305,6 +338,130 @@ document.addEventListener('mousemove', function(e) {
   if (document.pointerLockElement === canvas) mouseTurn += e.movementX * 0.002;
 });
 
+// ─── TOUCH CONTROLS ───
+var touchMoveX = 0, touchMoveY = 0;  // joystick output [-1,1]
+var touchLookX = 0;                    // drag look output
+var leftTouchId = null, rightTouchId = null;
+var joystickCenterX = 0, joystickCenterY = 0;
+var joystickRadius = 0;
+
+// Joystick DOM refs
+var joystickBaseEl = document.getElementById('joystickBase');
+var joystickKnobEl = document.getElementById('joystickKnob');
+var touchLeftEl = document.getElementById('touchLeft');
+var touchRightEl = document.getElementById('touchRight');
+
+touchLeftEl.addEventListener('touchstart', function(e) {
+  e.preventDefault();
+  for (var i = 0; i < e.changedTouches.length; i++) {
+    var t = e.changedTouches[i];
+    if (leftTouchId !== null) continue;
+    leftTouchId = t.identifier;
+    var rect = touchLeftEl.getBoundingClientRect();
+    joystickCenterX = t.clientX;
+    joystickCenterY = t.clientY;
+    joystickRadius = rect.width * 0.35;
+    joystickBaseEl.style.left = (t.clientX) + 'px';
+    joystickBaseEl.style.bottom = 'auto';
+    joystickBaseEl.style.top = (t.clientY - joystickRadius) + 'px';
+    joystickBaseEl.style.transform = 'translateX(-50%)';
+    joystickBaseEl.classList.add('active');
+    // Reset knob to center
+    joystickKnobEl.style.left = '50%';
+    joystickKnobEl.style.top = '50%';
+  }
+}, { passive: false });
+
+touchLeftEl.addEventListener('touchmove', function(e) {
+  e.preventDefault();
+  for (var i = 0; i < e.changedTouches.length; i++) {
+    var t = e.changedTouches[i];
+    if (t.identifier !== leftTouchId) continue;
+    var dx = t.clientX - joystickCenterX;
+    var dy = t.clientY - joystickCenterY;
+    var dist = Math.sqrt(dx * dx + dy * dy);
+    var maxDist = joystickRadius;
+    if (dist > maxDist) {
+      dx = (dx / dist) * maxDist;
+      dy = (dy / dist) * maxDist;
+      dist = maxDist;
+    }
+    // Normalize to [-1,1]
+    touchMoveX = dx / maxDist;
+    touchMoveY = dy / maxDist;
+    // Update knob position (% from center)
+    var knobX = 50 + (touchMoveX * 37.5);
+    var knobY = 50 + (touchMoveY * 37.5);
+    joystickKnobEl.style.left = knobX + '%';
+    joystickKnobEl.style.top = knobY + '%';
+  }
+}, { passive: false });
+
+touchLeftEl.addEventListener('touchend', function(e) {
+  for (var i = 0; i < e.changedTouches.length; i++) {
+    if (e.changedTouches[i].identifier === leftTouchId) {
+      leftTouchId = null;
+      touchMoveX = 0;
+      touchMoveY = 0;
+      joystickBaseEl.classList.remove('active');
+      joystickKnobEl.style.left = '50%';
+      joystickKnobEl.style.top = '50%';
+    }
+  }
+});
+touchLeftEl.addEventListener('touchcancel', function(e) {
+  for (var i = 0; i < e.changedTouches.length; i++) {
+    if (e.changedTouches[i].identifier === leftTouchId) {
+      leftTouchId = null;
+      touchMoveX = 0;
+      touchMoveY = 0;
+      joystickBaseEl.classList.remove('active');
+      joystickKnobEl.style.left = '50%';
+      joystickKnobEl.style.top = '50%';
+    }
+  }
+});
+
+// Right zone: drag to look
+var lastTouchLookX = 0;
+touchRightEl.addEventListener('touchstart', function(e) {
+  e.preventDefault();
+  for (var i = 0; i < e.changedTouches.length; i++) {
+    var t = e.changedTouches[i];
+    if (rightTouchId !== null) continue;
+    rightTouchId = t.identifier;
+    lastTouchLookX = t.clientX;
+  }
+}, { passive: false });
+
+touchRightEl.addEventListener('touchmove', function(e) {
+  e.preventDefault();
+  for (var i = 0; i < e.changedTouches.length; i++) {
+    var t = e.changedTouches[i];
+    if (t.identifier !== rightTouchId) continue;
+    var deltaX = t.clientX - lastTouchLookX;
+    touchLookX += deltaX * 0.005;  // same sensitivity as mouse
+    lastTouchLookX = t.clientX;
+  }
+}, { passive: false });
+
+touchRightEl.addEventListener('touchend', function(e) {
+  for (var i = 0; i < e.changedTouches.length; i++) {
+    if (e.changedTouches[i].identifier === rightTouchId) {
+      rightTouchId = null;
+      touchLookX = 0;
+    }
+  }
+});
+touchRightEl.addEventListener('touchcancel', function(e) {
+  for (var i = 0; i < e.changedTouches.length; i++) {
+    if (e.changedTouches[i].identifier === rightTouchId) {
+      rightTouchId = null;
+      touchLookX = 0;
+    }
+  }
+});
+
 // ─── Z-buffer ───
 var zBuffer = new Float64Array(W);
 
@@ -414,11 +571,13 @@ function render() {
 
 // ─── MOVEMENT ───
 function updateMovement() {
-  player.angle += mouseTurn;
+  player.angle += mouseTurn + touchLookX;
   mouseTurn = 0;
+  touchLookX = 0;
   
   var dx = 0, dy = 0;
   
+  // Keyboard input
   if (keys['KeyW'] || keys['ArrowUp']) {
     dx += Math.cos(player.angle) * MOVE_SPD;
     dy += Math.sin(player.angle) * MOVE_SPD;
@@ -437,6 +596,18 @@ function updateMovement() {
   }
   if (keys['ArrowLeft']) player.angle -= TURN_SPD;
   if (keys['ArrowRight']) player.angle += TURN_SPD;
+  
+  // Touch joystick input
+  if (touchMoveY !== 0 || touchMoveX !== 0) {
+    // Forward/backward (negative Y is up = forward)
+    var fwdScale = -touchMoveY * MOVE_SPD;
+    dx += Math.cos(player.angle) * fwdScale;
+    dy += Math.sin(player.angle) * fwdScale;
+    // Strafe (positive X is right)
+    var strafeScale = touchMoveX * MOVE_SPD;
+    dx += Math.cos(player.angle + Math.PI / 2) * strafeScale;
+    dy += Math.sin(player.angle + Math.PI / 2) * strafeScale;
+  }
   
   var r = 0.2;
   var nx = player.x + dx;
