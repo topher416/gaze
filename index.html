@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0,user-scalable=no">
 <title>The Gaze</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
 html, body { width: 100%; height: 100%; background: #0a0806; overflow: hidden; touch-action: none; }
@@ -14,75 +15,79 @@ canvas {
   -ms-interpolation-mode: nearest-neighbor;
 }
 #hud {
-  position: absolute; bottom: 0; left: 0; right: 0; height: 40px;
+  position: absolute; bottom: 0; left: 0; right: 0; height: 48px;
   background: linear-gradient(0deg, #0a0806, #1a1816);
   border-top: 2px solid #b8442a;
   display: flex; align-items: center; justify-content: space-between;
-  padding: 0 20px;
-  font-family: 'Courier New', monospace; color: #f5f2ed; font-size: 14px;
+  padding: 0 16px; gap: 12px;
+  font-family: 'Courier New', monospace; color: #f5f2ed; font-size: 13px;
 }
-.desire-label { color: #b8442a; }
-.hud-bar { width: 200px; height: 12px; background: #1a1816; border: 1px solid #333; margin-left: 8px; }
-.hud-fill { height: 100%; background: #b8442a; transition: width 0.15s; }
+.hud-group { display: flex; align-items: center; gap: 6px; }
+.desire-label { color: #b8442a; font-size: 12px; }
+.health-label { color: #d4a843; font-size: 12px; }
+.hud-bar { width: 120px; height: 10px; background: #1a1816; border: 1px solid #333; }
+.hud-fill { height: 100%; transition: width 0.15s; }
+#hudMsg { color: #555; font-size: 11px; white-space: nowrap; }
+#fpsHUD { color: #444; font-size: 11px; }
 #msg {
   position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
   font-family: 'Courier New', monospace; color: #f5f2ed; font-size: 16px;
   text-align: center; text-shadow: 0 0 10px #0a0806; line-height: 1.8;
   pointer-events: none;
 }
-/* ─── TOUCH CONTROLS ─── */
-.touch-zone {
-  position: absolute; bottom: 0; height: calc(100% - 40px);
-  pointer-events: auto; z-index: 10;
-  -webkit-user-select: none; user-select: none;
-  -webkit-touch-callout: none;
-}
+.touch-zone { position: absolute; bottom: 0; height: calc(100% - 48px); pointer-events: auto; z-index: 10; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
 #touchLeft { left: 0; width: 50%; }
 #touchRight { right: 0; width: 50%; }
-/* Joystick base ring */
-#joystickBase {
-  position: absolute; bottom: 80px; left: 12.5%; width: 35%; aspect-ratio: 1;
-  max-width: 160px; max-height: 160px;
-  border: 2px solid rgba(184,68,42,0.25);
-  border-radius: 50%;
-  transform: translateX(-50%);
-  pointer-events: none; z-index: 11;
-  opacity: 0; transition: opacity 0.2s;
-}
+#joystickBase { position: absolute; width: 35%; aspect-ratio: 1; max-width: 160px; max-height: 160px; border: 2px solid rgba(184,68,42,0.25); border-radius: 50%; transform: translateX(-50%); pointer-events: none; z-index: 11; opacity: 0; transition: opacity 0.2s; }
 #joystickBase.active { opacity: 1; }
-/* Joystick knob */
-#joystickKnob {
-  position: absolute; top: 50%; left: 50%; width: 25%; aspect-ratio: 1;
-  max-width: 40px; max-height: 40px;
-  background: rgba(184,68,42,0.4);
-  border: 1px solid rgba(184,68,42,0.5);
-  border-radius: 50%;
-  transform: translate(-50%, -50%);
-  pointer-events: none; z-index: 12;
-}
+#joystickKnob { position: absolute; top: 50%; left: 50%; width: 25%; aspect-ratio: 1; max-width: 40px; max-height: 40px; background: rgba(184,68,42,0.4); border: 1px solid rgba(184,68,42,0.5); border-radius: 50%; transform: translate(-50%, -50%); pointer-events: none; z-index: 12; }
+#weapon { position: absolute; bottom: 48px; left: 50%; transform: translateX(-50%); width: 640px; max-width: 100%; height: 220px; pointer-events: none; z-index: 5; image-rendering: pixelated; }
+#muzzleFlash { position: absolute; top: 0; left: 0; right: 0; bottom: 48px; background: rgba(184,68,42,0); pointer-events: none; z-index: 6; transition: background 0.05s; }
+#muzzleFlash.flash { background: rgba(245,242,237,0.25); }
+#deathOverlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(10,8,6,0); pointer-events: auto; z-index: 20; display: none; align-items: center; justify-content: center; flex-direction: column; gap: 16px; font-family: "Courier New", monospace; color: #f5f2ed; text-align: center; text-shadow: 0 0 20px #0a0806; }
+#deathOverlay.visible { display: flex; background: rgba(10,8,6,0.85); }
+#titleScreen { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: #0a0806; z-index: 25; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; font-family: "Courier New", monospace; color: #f5f2ed; pointer-events: auto; cursor: pointer; }
+#titleScreen h1 { font-size: 48px; color: #b8442a; letter-spacing: 4px; margin: 0; }
+#titleScreen .subtitle { color: #555; font-size: 14px; font-style: italic; margin: 0; }
+#titleScreen .tap { color: #888; font-size: 14px; margin: 0; }
+#titleScreen .version { color: #333; font-size: 11px; margin-top: 16px; }
 </style>
 </head>
 <body>
 <canvas id="c"></canvas>
+<canvas id="weapon"></canvas>
 <div id="touchLeft" class="touch-zone"></div>
 <div id="touchRight" class="touch-zone"></div>
 <div id="joystickBase"><div id="joystickKnob"></div></div>
+<div id="muzzleFlash"></div>
+<div id="deathOverlay"></div>
+<div id="titleScreen">
+  <h1>THE GAZE</h1>
+  <p class="subtitle">"What sees you, sees itself seeing."</p>
+  <p class="tap">Tap anywhere &mdash; or click &mdash; to enter</p>
+  <p class="version">v0.2 &mdash; sprites &middot; enemies &middot; weapon &middot; audio</p>
+</div>
 <div id="hud">
-  <div>
+  <div class="hud-group">
+    <span class="health-label">HP</span>
+    <div class="hud-bar"><div class="hud-fill" id="healthBar" style="width:100%;background:#d4a843"></div></div>
+  </div>
+  <div class="hud-group">
     <span class="desire-label">DESIRE</span>
     <div class="hud-bar"><div class="hud-fill" id="desireBar" style="width:100%;background:#b8442a"></div></div>
   </div>
-  <div id="hudMsg" style="color:#888">WASD move · mouse look · tap canvas to start</div>
-  <div id="fpsHUD" style="color:#555"></div>
+  <span id="hudMsg"></span>
+  <span id="scoreDisplay" style="color:#b8442a;font-size:13px"></span>
+  <span id="fpsHUD"></span>
 </div>
-<div id="msg">Loading etched textures...</div>
+<div id="msg"></div>
+
 
 <script>
 // ═══════════════════════════════════════════════════════════
-//  THE GAZE — DOOM-style raycaster with etched textures
+//  THE GAZE v0.2 — DOOM-style raycaster with etched textures
 // ═══════════════════════════════════════════════════════════
 
-// ─── CONFIG ───
 var W = 640, H = 400;
 var TEX = 128;
 var MAP_SIZE = 16;
@@ -92,213 +97,210 @@ var MOVE_SPD = 0.04;
 var TURN_SPD = 0.03;
 var WALL_SCALE = 1.2;
 
-// ─── CANVAS ───
 var canvas = document.getElementById('c');
 var ctx = canvas.getContext('2d', { alpha: false });
-canvas.width = W;
-canvas.height = H;
+canvas.width = W; canvas.height = H;
 
-// ─── TEXTURE CANVASES ───
+var wcanvas = document.getElementById('weapon');
+var wctx = wcanvas.getContext('2d', { alpha: true });
+wcanvas.width = 200; wcanvas.height = 180;
+
 var textureCanvases = {};
-var texturesLoaded = 0;
-var TEX_COUNT = 3;
+var spriteTextures = {};
 
-// ─── GENERATE TEXTURES PROCEDURALLY (etched style) ───
 function generateStoneTexture() {
-  var c = document.createElement('canvas');
-  c.width = TEX; c.height = TEX;
+  var c = document.createElement('canvas'); c.width = TEX; c.height = TEX;
   var tc = c.getContext('2d');
-  
-  // Cream background
-  tc.fillStyle = '#f5f2ed';
-  tc.fillRect(0, 0, TEX, TEX);
-  
-  // Stone blocks (6 blocks in 2x3 grid)
+  tc.fillStyle = '#f5f2ed'; tc.fillRect(0, 0, TEX, TEX);
   var blocks = [
-    {x:0,y:0,w:64,h:42,label:'THE SYMBOLIC'},
-    {x:64,y:0,w:64,h:42,label:'THE ORDER'},
-    {x:0,y:42,w:64,h:42,label:'THE IMAGINARY'},
-    {x:64,y:42,w:64,h:42,label:'THE OTHER'},
-    {x:0,y:84,w:64,h:42,label:'THE REAL'},
-    {x:64,y:84,w:64,h:42,label:'THE VOID'},
+    {x:0,y:0,w:64,h:42,label:'THE SYMBOLIC'},{x:64,y:0,w:64,h:42,label:'THE ORDER'},
+    {x:0,y:42,w:64,h:42,label:'THE IMAGINARY'},{x:64,y:42,w:64,h:42,label:'THE OTHER'},
+    {x:0,y:84,w:64,h:42,label:'THE REAL'},{x:64,y:84,w:64,h:42,label:'THE VOID'}
   ];
-  
   blocks.forEach(function(b) {
-    // Dark block
-    tc.fillStyle = '#1a1816';
-    tc.fillRect(b.x, b.y, b.w, b.h);
-    
-    // Block outline
-    tc.strokeStyle = 'rgba(26,24,22,0.4)';
-    tc.lineWidth = 1;
-    tc.strokeRect(b.x + 1, b.y + 1, b.w - 2, b.h - 2);
-    
-    // Etched text (light on dark)
-    tc.fillStyle = 'rgba(245,242,237,0.5)';
-    tc.font = 'bold 10px serif';
-    tc.textAlign = 'center';
-    tc.textBaseline = 'middle';
-    tc.fillText(b.label, b.x + b.w/2, b.y + Math.min(b.h * 0.5, 22));
-    
-    // Etching lines
-    tc.strokeStyle = 'rgba(26,24,22,0.2)';
-    tc.lineWidth = 0.5;
-    for (var y = b.y + 8; y < b.y + b.h - 5; y += 6) {
-      tc.beginPath();
-      tc.moveTo(b.x + 3, y);
-      tc.lineTo(b.x + b.w - 3, y);
-      tc.stroke();
+    tc.fillStyle = '#1a1816'; tc.fillRect(b.x, b.y, b.w, b.h);
+    tc.strokeStyle = 'rgba(26,24,22,0.4)'; tc.lineWidth = 1;
+    tc.strokeRect(b.x+1, b.y+1, b.w-2, b.h-2);
+    tc.fillStyle = 'rgba(245,242,237,0.5)'; tc.font = 'bold 10px serif';
+    tc.textAlign = 'center'; tc.textBaseline = 'middle';
+    tc.fillText(b.label, b.x+b.w/2, b.y+Math.min(b.h*0.5, 22));
+    tc.strokeStyle = 'rgba(26,24,22,0.2)'; tc.lineWidth = 0.5;
+    for (var y = b.y+8; y < b.y+b.h-5; y += 6) {
+      tc.beginPath(); tc.moveTo(b.x+3, y); tc.lineTo(b.x+b.w-3, y); tc.stroke();
     }
   });
-  
-  // Mortar lines
-  tc.strokeStyle = 'rgba(10,8,6,0.3)';
-  tc.lineWidth = 2;
-  tc.beginPath(); tc.moveTo(0, 42); tc.lineTo(128, 42); tc.stroke();
-  tc.beginPath(); tc.moveTo(0, 84); tc.lineTo(128, 84); tc.stroke();
-  tc.beginPath(); tc.moveTo(64, 0); tc.lineTo(64, 42); tc.stroke();
-  tc.beginPath(); tc.moveTo(64, 42); tc.lineTo(64, 84); tc.stroke();
-  tc.beginPath(); tc.moveTo(64, 84); tc.lineTo(64, 128); tc.stroke();
-  
+  tc.strokeStyle = 'rgba(10,8,6,0.3)'; tc.lineWidth = 2;
+  tc.beginPath(); tc.moveTo(0,42); tc.lineTo(128,42); tc.stroke();
+  tc.beginPath(); tc.moveTo(0,84); tc.lineTo(128,84); tc.stroke();
+  tc.beginPath(); tc.moveTo(64,0); tc.lineTo(64,42); tc.stroke();
+  tc.beginPath(); tc.moveTo(64,42); tc.lineTo(64,84); tc.stroke();
+  tc.beginPath(); tc.moveTo(64,84); tc.lineTo(64,128); tc.stroke();
   return c;
 }
 
 function generateMirrorTexture() {
-  var c = document.createElement('canvas');
-  c.width = TEX; c.height = TEX;
+  var c = document.createElement('canvas'); c.width = TEX; c.height = TEX;
   var tc = c.getContext('2d');
-  
-  // Background
-  tc.fillStyle = '#f5f2ed';
-  tc.fillRect(0, 0, TEX, TEX);
-  
-  // Ornate frame
-  tc.strokeStyle = '#1a1816';
-  tc.lineWidth = 3;
-  tc.globalAlpha = 0.6;
-  tc.strokeRect(10, 10, 108, 108);
-  tc.globalAlpha = 1;
-  
-  tc.strokeStyle = '#1a1816';
-  tc.lineWidth = 1;
-  tc.globalAlpha = 0.3;
-  tc.strokeRect(16, 16, 96, 96);
-  tc.globalAlpha = 1;
-  
-  // Corner ornaments
-  tc.fillStyle = '#1a1816';
-  tc.globalAlpha = 0.8;
+  tc.fillStyle = '#f5f2ed'; tc.fillRect(0, 0, TEX, TEX);
+  tc.strokeStyle = '#1a1816'; tc.lineWidth = 3; tc.globalAlpha = 0.6;
+  tc.strokeRect(10, 10, 108, 108); tc.globalAlpha = 1;
+  tc.strokeStyle = '#1a1816'; tc.lineWidth = 1; tc.globalAlpha = 0.3;
+  tc.strokeRect(16, 16, 96, 96); tc.globalAlpha = 1;
+  tc.fillStyle = '#1a1816'; tc.globalAlpha = 0.8;
   [[9,9],[109,9],[9,109],[109,109]].forEach(function(pt) {
-    tc.beginPath();
-    tc.arc(pt[0], pt[1], 4, 0, Math.PI * 2);
-    tc.fill();
+    tc.beginPath(); tc.arc(pt[0], pt[1], 4, 0, Math.PI*2); tc.fill();
   });
   tc.globalAlpha = 1;
-  
-  // Mirror surface (slight tint)
-  tc.fillStyle = '#1a1816';
-  tc.globalAlpha = 0.02;
-  tc.fillRect(18, 18, 92, 92);
-  tc.globalAlpha = 1;
-  
-  // "Je" scratched in
-  tc.strokeStyle = 'rgba(245,242,237,0.25)';
-  tc.lineWidth = 0.5;
-  tc.font = 'bold 30px serif';
-  tc.textAlign = 'center';
-  tc.textBaseline = 'middle';
+  tc.fillStyle = '#1a1816'; tc.globalAlpha = 0.02;
+  tc.fillRect(18, 18, 92, 92); tc.globalAlpha = 1;
+  tc.strokeStyle = 'rgba(245,242,237,0.25)'; tc.lineWidth = 0.5;
+  tc.font = 'bold 30px serif'; tc.textAlign = 'center'; tc.textBaseline = 'middle';
   tc.strokeText('Je', 64, 68);
-  
-  // Rust blood drips
-  tc.strokeStyle = '#b8442a';
-  tc.lineWidth = 2.5;
-  tc.lineCap = 'round';
-  tc.beginPath(); tc.moveTo(52, 42); tc.quadraticCurveTo(49, 59, 54, 76); tc.quadraticCurveTo(59, 80, 66, 72); tc.stroke();
+  tc.strokeStyle = '#b8442a'; tc.lineWidth = 2.5; tc.lineCap = 'round';
+  tc.beginPath(); tc.moveTo(52,42); tc.quadraticCurveTo(49,59,54,76); tc.quadraticCurveTo(59,80,66,72); tc.stroke();
   tc.lineWidth = 2;
-  tc.beginPath(); tc.moveTo(66, 72); tc.quadraticCurveTo(62, 76, 60, 82); tc.stroke();
-  tc.lineWidth = 1.5;
-  tc.globalAlpha = 0.4;
-  tc.beginPath(); tc.moveTo(54, 79); tc.quadraticCurveTo(55, 87, 52, 95); tc.stroke();
-  tc.beginPath(); tc.moveTo(58, 79); tc.quadraticCurveTo(59, 85, 57, 90); tc.stroke();
-  tc.beginPath(); tc.moveTo(62, 79); tc.quadraticCurveTo(63, 87, 63, 96); tc.stroke();
+  tc.beginPath(); tc.moveTo(66,72); tc.quadraticCurveTo(62,76,60,82); tc.stroke();
+  tc.lineWidth = 1.5; tc.globalAlpha = 0.4;
+  tc.beginPath(); tc.moveTo(54,79); tc.quadraticCurveTo(55,87,52,95); tc.stroke();
+  tc.beginPath(); tc.moveTo(58,79); tc.quadraticCurveTo(59,85,57,90); tc.stroke();
+  tc.beginPath(); tc.moveTo(62,79); tc.quadraticCurveTo(63,87,63,96); tc.stroke();
   tc.globalAlpha = 1;
-  
   return c;
 }
 
 function generateDoorTexture() {
-  var c = document.createElement('canvas');
-  c.width = TEX; c.height = TEX;
+  var c = document.createElement('canvas'); c.width = TEX; c.height = TEX;
   var tc = c.getContext('2d');
-  
-  // Background
-  tc.fillStyle = '#f5f2ed';
-  tc.fillRect(0, 0, TEX, TEX);
-  
-  // Stone arch
-  tc.strokeStyle = '#1a1816';
-  tc.lineWidth = 4;
-  tc.globalAlpha = 0.5;
-  tc.beginPath();
-  tc.arc(64, 51, 70, Math.PI, 0);
-  tc.stroke();
-  tc.globalAlpha = 1;
-  
-  // Two wooden door panels
-  tc.fillStyle = '#1a1816';
-  tc.globalAlpha = 0.2;
-  tc.fillRect(35, 51, 29, 77);
-  tc.fillRect(64, 51, 29, 77);
-  tc.globalAlpha = 1;
-  
-  // Iron reinforcement bands
-  tc.strokeStyle = '#0a0806';
-  tc.lineWidth = 2;
-  tc.globalAlpha = 0.5;
-  [60, 75, 90, 105].forEach(function(y) {
-    tc.beginPath(); tc.moveTo(37, y); tc.lineTo(91, y); tc.stroke();
+  tc.fillStyle = '#f5f2ed'; tc.fillRect(0, 0, TEX, TEX);
+  tc.strokeStyle = '#1a1816'; tc.lineWidth = 4; tc.globalAlpha = 0.5;
+  tc.beginPath(); tc.arc(64,51,70,Math.PI,0); tc.stroke(); tc.globalAlpha = 1;
+  tc.fillStyle = '#1a1816'; tc.globalAlpha = 0.2;
+  tc.fillRect(35,51,29,77); tc.fillRect(64,51,29,77); tc.globalAlpha = 1;
+  tc.strokeStyle = '#0a0806'; tc.lineWidth = 2; tc.globalAlpha = 0.5;
+  [60,75,90,105].forEach(function(y) {
+    tc.beginPath(); tc.moveTo(37,y); tc.lineTo(91,y); tc.stroke();
   });
   tc.globalAlpha = 1;
-  
-  // Door lock/roundel
-  tc.strokeStyle = '#0a0806';
-  tc.lineWidth = 1.5;
-  tc.globalAlpha = 0.5;
-  tc.beginPath(); tc.arc(64, 78, 6, 0, Math.PI * 2); tc.stroke();
-  tc.fillStyle = '#0a0806';
-  tc.globalAlpha = 0.3;
-  tc.beginPath(); tc.arc(64, 78, 2, 0, Math.PI * 2); tc.fill();
-  tc.globalAlpha = 1;
-  
-  // Center seam
-  tc.strokeStyle = '#0a0806';
-  tc.lineWidth = 1.5;
-  tc.globalAlpha = 0.3;
-  tc.beginPath(); tc.moveTo(64, 51); tc.lineTo(64, 128); tc.stroke();
-  tc.globalAlpha = 1;
-  
+  tc.strokeStyle = '#0a0806'; tc.lineWidth = 1.5; tc.globalAlpha = 0.5;
+  tc.beginPath(); tc.arc(64,78,6,0,Math.PI*2); tc.stroke();
+  tc.fillStyle = '#0a0806'; tc.globalAlpha = 0.3;
+  tc.beginPath(); tc.arc(64,78,2,0,Math.PI*2); tc.fill(); tc.globalAlpha = 1;
+  tc.strokeStyle = '#0a0806'; tc.lineWidth = 1.5; tc.globalAlpha = 0.3;
+  tc.beginPath(); tc.moveTo(64,51); tc.lineTo(64,128); tc.stroke(); tc.globalAlpha = 1;
   return c;
 }
 
-// Generate all textures synchronously
+// ─── SPRITE TEXTURES ───
+function enemyBaseCanvas() {
+  var c = document.createElement('canvas'); c.width = 80; c.height = 96;
+  var tc = c.getContext('2d'); tc.clearRect(0,0,80,96);
+  // Head
+  tc.fillStyle = '#1a1816'; tc.globalAlpha = 0.85;
+  tc.beginPath(); tc.arc(40,18,12,0,Math.PI*2); tc.fill();
+  // Eye (the gaze)
+  tc.fillStyle = '#b8442a'; tc.beginPath(); tc.arc(40,16,3,0,Math.PI*2); tc.fill();
+  tc.fillStyle = '#f5f2ed'; tc.beginPath(); tc.arc(40,16,1.5,0,Math.PI*2); tc.fill();
+  // Body
+  tc.fillStyle = '#1a1816';
+  tc.beginPath(); tc.moveTo(30,28); tc.lineTo(50,28); tc.lineTo(48,65); tc.lineTo(32,65); tc.closePath(); tc.fill();
+  // Arms reaching
+  tc.lineWidth = 4; tc.lineCap = 'round'; tc.globalAlpha = 0.85;
+  tc.beginPath(); tc.moveTo(30,35); tc.lineTo(12,50); tc.stroke();
+  tc.beginPath(); tc.moveTo(50,35); tc.lineTo(68,50); tc.stroke();
+  // Fingers
+  tc.lineWidth = 2;
+  [[12,50,6,58],[12,50,18,56],[68,50,74,58],[68,50,62,56]].forEach(function(p){
+    tc.beginPath(); tc.moveTo(p[0],p[1]); tc.lineTo(p[2],p[3]); tc.stroke();
+  });
+  // Legs
+  tc.lineWidth = 4;
+  tc.beginPath(); tc.moveTo(35,65); tc.lineTo(30,92); tc.stroke();
+  tc.beginPath(); tc.moveTo(45,65); tc.lineTo(50,92); tc.stroke();
+  // Etching lines
+  tc.strokeStyle = 'rgba(245,242,237,0.15)'; tc.lineWidth = 0.5; tc.globalAlpha = 0.15;
+  tc.beginPath(); tc.moveTo(32,35); tc.lineTo(48,35); tc.stroke();
+  tc.beginPath(); tc.moveTo(32,42); tc.lineTo(48,42); tc.stroke();
+  tc.beginPath(); tc.moveTo(32,50); tc.lineTo(48,50); tc.stroke();
+  tc.beginPath(); tc.moveTo(33,57); tc.lineTo(47,57); tc.stroke();
+  tc.globalAlpha = 1;
+  return c;
+}
+
+function genEnemyTex() { return enemyBaseCanvas(); }
+function genEnemyPain() {
+  var b = enemyBaseCanvas(), c = document.createElement('canvas'); c.width = 80; c.height = 96;
+  var tc = c.getContext('2d'); tc.clearRect(0,0,80,96); tc.drawImage(b,0,0);
+  tc.globalCompositeOperation = 'source-atop';
+  tc.fillStyle = 'rgba(184,68,42,0.5)'; tc.fillRect(0,0,80,96);
+  tc.globalCompositeOperation = 'source-over';
+  return c;
+}
+function genEnemyDead() {
+  var c = document.createElement('canvas'); c.width = 80; c.height = 96;
+  var tc = c.getContext('2d'); tc.clearRect(0,0,80,96); tc.globalAlpha = 0.4;
+  tc.fillStyle = '#1a1816'; tc.beginPath(); tc.ellipse(40,90,30,6,0,0,Math.PI*2); tc.fill();
+  tc.strokeStyle = '#1a1816'; tc.lineWidth = 1; tc.globalAlpha = 0.2;
+  for (var y=70; y<96; y+=3) { tc.beginPath(); tc.moveTo(20+Math.random()*40,y); tc.lineTo(20+Math.random()*40,y); tc.stroke(); }
+  tc.fillStyle = '#b8442a'; tc.globalAlpha = 0.3;
+  tc.beginPath(); tc.arc(40,88,3,0,Math.PI*2); tc.fill(); tc.globalAlpha = 1;
+  return c;
+}
+
+function genPickupHealth() {
+  var c = document.createElement('canvas'); c.width = 32; c.height = 32;
+  var tc = c.getContext('2d'); tc.clearRect(0,0,32,32);
+  tc.strokeStyle = '#b8442a'; tc.lineWidth = 2;
+  tc.beginPath(); tc.arc(16,16,10,0,Math.PI*2); tc.stroke();
+  tc.fillStyle = 'rgba(184,68,42,0.3)'; tc.beginPath(); tc.arc(16,16,10,0,Math.PI*2); tc.fill();
+  tc.fillStyle = '#b8442a'; tc.fillRect(14,8,4,16); tc.fillRect(8,14,16,4);
+  tc.strokeStyle = 'rgba(184,68,42,0.2)'; tc.lineWidth = 1;
+  tc.beginPath(); tc.arc(16,16,14,0,Math.PI*2); tc.stroke();
+  return c;
+}
+
+function genPickupDesire() {
+  var c = document.createElement('canvas'); c.width = 32; c.height = 32;
+  var tc = c.getContext('2d'); tc.clearRect(0,0,32,32);
+  tc.fillStyle = '#d4a843'; tc.beginPath();
+  tc.moveTo(16,4); tc.lineTo(28,16); tc.lineTo(16,28); tc.lineTo(4,16); tc.closePath(); tc.fill();
+  tc.strokeStyle = 'rgba(10,8,6,0.3)'; tc.lineWidth = 0.5;
+  tc.beginPath(); tc.moveTo(16,7); tc.lineTo(25,16); tc.stroke();
+  tc.beginPath(); tc.moveTo(13,10); tc.lineTo(13,22); tc.stroke();
+  tc.strokeStyle = 'rgba(212,168,67,0.2)'; tc.lineWidth = 1;
+  tc.beginPath(); tc.moveTo(16,1); tc.lineTo(31,16); tc.lineTo(16,31); tc.lineTo(1,16); tc.closePath(); tc.stroke();
+  return c;
+}
+
+function genWeaponSprite() {
+  var c = document.createElement('canvas'); c.width = 200; c.height = 180;
+  var tc = c.getContext('2d'); tc.clearRect(0,0,200,180);
+  tc.fillStyle = '#2a2826'; tc.fillRect(88,20,24,100);
+  tc.fillStyle = 'rgba(245,242,237,0.08)'; tc.fillRect(90,22,8,96);
+  tc.fillStyle = '#1a1816';
+  tc.beginPath(); tc.moveTo(82,115); tc.lineTo(118,115); tc.lineTo(128,170); tc.lineTo(72,170); tc.closePath(); tc.fill();
+  tc.strokeStyle = 'rgba(245,242,237,0.05)'; tc.lineWidth = 0.5;
+  for (var y=120;y<168;y+=5){tc.beginPath();tc.moveTo(76,y);tc.lineTo(124,y);tc.stroke();}
+  tc.strokeStyle = '#2a2826'; tc.lineWidth = 3;
+  tc.beginPath(); tc.arc(100,118,14,0,Math.PI); tc.stroke();
+  tc.fillStyle = '#333'; tc.fillRect(96,14,8,8);
+  tc.fillStyle = '#0a0806'; tc.fillRect(92,18,16,4);
+  return c;
+}
+
+// Cache all textures
+spriteTextures.enemy = genEnemyTex();
+spriteTextures.enemyPain = genEnemyPain();
+spriteTextures.enemyDead = genEnemyDead();
+spriteTextures.health = genPickupHealth();
+spriteTextures.desire = genPickupDesire();
+var weaponTex = genWeaponSprite();
+
 try {
-  textureCanvases['stone'] = generateStoneTexture();
-  textureCanvases['mirror'] = generateMirrorTexture();
-  textureCanvases['door'] = generateDoorTexture();
-  texturesLoaded = TEX_COUNT;
+  textureCanvases.stone = generateStoneTexture();
+  textureCanvases.mirror = generateMirrorTexture();
+  textureCanvases.door = generateDoorTexture();
 } catch(e) {
   console.error('Texture generation failed:', e);
-  // Fallback: solid colors
-  ['stone','#666','mirror','#aaa','door','#543'].forEach(function(_, i, arr) {
-    if (i % 2 === 0) {
-      var c = document.createElement('canvas');
-      c.width = TEX; c.height = TEX;
-      c.getContext('2d').fillStyle = arr[i+1];
-      c.getContext('2d').fillRect(0, 0, TEX, TEX);
-      textureCanvases[arr[i]] = c;
-      texturesLoaded++;
-    }
-  });
 }
 
 // ─── MAP ───
@@ -321,343 +323,421 @@ var MAP = [
   [1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
 ];
 
-// ─── PLAYER ───
 var player = { x: 1.5, y: 1.5, angle: 0 };
 
-// ─── INPUT ───
-var keys = {};
-var mouseTurn = 0;
+// ─── SPRITES ───
+var sprites = [
+  { type:'enemy', x:3.5, y:3.5, hp:3, pain:0, dead:false, deadFrames:0, speed:0.015 },
+  { type:'enemy', x:7.5, y:2.5, hp:3, pain:0, dead:false, deadFrames:0, speed:0.015 },
+  { type:'enemy', x:2.5, y:7.5, hp:3, pain:0, dead:false, deadFrames:0, speed:0.015 },
+  { type:'enemy', x:10.5, y:6.5, hp:3, pain:0, dead:false, deadFrames:0, speed:0.015 },
+  { type:'enemy', x:5.5, y:10.5, hp:3, pain:0, dead:false, deadFrames:0, speed:0.015 },
+  { type:'enemy', x:12.5, y:12.5, hp:3, pain:0, dead:false, deadFrames:0, speed:0.015 },
+  { type:'enemy', x:8.5, y:13.5, hp:3, pain:0, dead:false, deadFrames:0, speed:0.015 },
+  { type:'health', x:5.5, y:5.5, pickedUp: false },
+  { type:'health', x:13.5, y:3.5, pickedUp: false },
+  { type:'desire', x:9.5, y:9.5, pickedUp: false },
+  { type:'desire', x:1.5, y:12.5, pickedUp: false },
+];
 
+// ─── GAME STATE ───
+var gameState = 'title';
+var health = 100, desire = 100, score = 0, kills = 0;
+var shootCooldown = 0, weaponRecoil = 0, footstepTimer = 0;
+
+// ─── AUDIO ───
+var audioReady = false, ambientDrone, footstepSynth, shootSynth, hitSynth;
+
+async function initAudio() {
+  if (audioReady) return;
+  try {
+    await Tone.start();
+    ambientDrone = new Tone.FatOscillator(55, 'sawtooth', 40);
+    var dFilter = new Tone.Filter(200, 'lowpass').toDestination();
+    ambientDrone.connect(dFilter);
+    ambientDrone.volume.value = -28;
+    ambientDrone.start();
+    var ff = new Tone.Filter(800, 'lowpass').toDestination();
+    footstepSynth = new Tone.NoiseSynth({ noise:{type:'brown'}, envelope:{attack:0.01,decay:0.15,sustain:0,release:0.05} });
+    footstepSynth.connect(ff); footstepSynth.volume.value = -24;
+    var sf = new Tone.Filter(2000, 'lowpass').toDestination();
+    shootSynth = new Tone.NoiseSynth({ noise:{type:'white'}, envelope:{attack:0.002,decay:0.12,sustain:0,release:0.05} });
+    shootSynth.connect(sf); shootSynth.volume.value = -10;
+    hitSynth = new Tone.MembraneSynth({ pitchDecay:0.05, octaves:4, envelope:{attack:0.001,decay:0.2,sustain:0,release:0.1} }).toDestination();
+    hitSynth.volume.value = -12;
+    audioReady = true;
+  } catch(e) {}
+}
+
+function playFootstep() { if (audioReady) footstepSynth.triggerAttackRelease('8n'); }
+function playShoot() { if (audioReady) shootSynth.triggerAttackRelease('16n'); }
+function playHit() { if (audioReady) hitSynth.triggerAttackRelease('C1','8n'); }
+
+// ─── INPUT ───
+var keys = {}, mouseTurn = 0;
 document.addEventListener('keydown', function(e) { keys[e.code] = true; e.preventDefault(); });
 document.addEventListener('keyup', function(e) { keys[e.code] = false; });
 
 canvas.addEventListener('click', function() {
   if (!document.pointerLockElement) canvas.requestPointerLock();
+  doShoot();
 });
 document.addEventListener('mousemove', function(e) {
   if (document.pointerLockElement === canvas) mouseTurn += e.movementX * 0.002;
 });
 
-// ─── TOUCH CONTROLS ───
-var touchMoveX = 0, touchMoveY = 0;  // joystick output [-1,1]
-var touchLookX = 0;                    // drag look output
+// ─── TOUCH ───
+var touchMoveX = 0, touchMoveY = 0, touchLookX = 0;
 var leftTouchId = null, rightTouchId = null;
-var joystickCenterX = 0, joystickCenterY = 0;
-var joystickRadius = 0;
-
-// Joystick DOM refs
+var joystickCenterX = 0, joystickCenterY = 0, joystickRadius = 0;
 var joystickBaseEl = document.getElementById('joystickBase');
 var joystickKnobEl = document.getElementById('joystickKnob');
 var touchLeftEl = document.getElementById('touchLeft');
 var touchRightEl = document.getElementById('touchRight');
+var lastTouchLookX = 0, lastTapTime = 0;
 
-touchLeftEl.addEventListener('touchstart', function(e) {
-  e.preventDefault();
-  for (var i = 0; i < e.changedTouches.length; i++) {
-    var t = e.changedTouches[i];
-    if (leftTouchId !== null) continue;
-    leftTouchId = t.identifier;
-    var rect = touchLeftEl.getBoundingClientRect();
-    joystickCenterX = t.clientX;
-    joystickCenterY = t.clientY;
-    joystickRadius = rect.width * 0.35;
-    joystickBaseEl.style.left = (t.clientX) + 'px';
-    joystickBaseEl.style.bottom = 'auto';
-    joystickBaseEl.style.top = (t.clientY - joystickRadius) + 'px';
-    joystickBaseEl.style.transform = 'translateX(-50%)';
-    joystickBaseEl.classList.add('active');
-    // Reset knob to center
-    joystickKnobEl.style.left = '50%';
-    joystickKnobEl.style.top = '50%';
-  }
-}, { passive: false });
-
-touchLeftEl.addEventListener('touchmove', function(e) {
-  e.preventDefault();
-  for (var i = 0; i < e.changedTouches.length; i++) {
-    var t = e.changedTouches[i];
-    if (t.identifier !== leftTouchId) continue;
-    var dx = t.clientX - joystickCenterX;
-    var dy = t.clientY - joystickCenterY;
-    var dist = Math.sqrt(dx * dx + dy * dy);
-    var maxDist = joystickRadius;
-    if (dist > maxDist) {
-      dx = (dx / dist) * maxDist;
-      dy = (dy / dist) * maxDist;
-      dist = maxDist;
+function addTouch(el, isLeft) {
+  el.addEventListener('touchstart', function(e) {
+    e.preventDefault();
+    for (var i = 0; i < e.changedTouches.length; i++) {
+      var t = e.changedTouches[i];
+      if (isLeft) {
+        if (leftTouchId !== null) continue;
+        leftTouchId = t.identifier;
+        joystickCenterX = t.clientX; joystickCenterY = t.clientY;
+        joystickRadius = el.getBoundingClientRect().width * 0.35;
+        joystickBaseEl.style.left = t.clientX + 'px';
+        joystickBaseEl.style.top  = (t.clientY - joystickRadius) + 'px';
+        joystickBaseEl.style.bottom = 'auto';
+        joystickBaseEl.style.transform = 'translateX(-50%)';
+        joystickBaseEl.classList.add('active');
+        joystickKnobEl.style.left = '50%'; joystickKnobEl.style.top = '50%';
+      } else {
+        if (rightTouchId !== null) continue;
+        rightTouchId = t.identifier;
+        lastTouchLookX = t.clientX;
+        var now = Date.now();
+        if (now - lastTapTime < 300) { doShoot(); lastTapTime = 0; }
+        else lastTapTime = now;
+      }
     }
-    // Normalize to [-1,1]
-    touchMoveX = dx / maxDist;
-    touchMoveY = dy / maxDist;
-    // Update knob position (% from center)
-    var knobX = 50 + (touchMoveX * 37.5);
-    var knobY = 50 + (touchMoveY * 37.5);
-    joystickKnobEl.style.left = knobX + '%';
-    joystickKnobEl.style.top = knobY + '%';
-  }
-}, { passive: false });
-
-touchLeftEl.addEventListener('touchend', function(e) {
-  for (var i = 0; i < e.changedTouches.length; i++) {
-    if (e.changedTouches[i].identifier === leftTouchId) {
-      leftTouchId = null;
-      touchMoveX = 0;
-      touchMoveY = 0;
-      joystickBaseEl.classList.remove('active');
-      joystickKnobEl.style.left = '50%';
-      joystickKnobEl.style.top = '50%';
+  }, {passive:false});
+  el.addEventListener('touchmove', function(e) {
+    e.preventDefault();
+    for (var i = 0; i < e.changedTouches.length; i++) {
+      var t = e.changedTouches[i];
+      if (isLeft) {
+        if (t.identifier !== leftTouchId) continue;
+        var dx = t.clientX - joystickCenterX, dy = t.clientY - joystickCenterY;
+        var dist = Math.sqrt(dx*dx + dy*dy);
+        if (dist > joystickRadius) { dx = (dx/dist)*joystickRadius; dy = (dy/dist)*joystickRadius; dist = joystickRadius; }
+        touchMoveX = dx / joystickRadius; touchMoveY = dy / joystickRadius;
+        joystickKnobEl.style.left = (50 + touchMoveX*37.5) + '%';
+        joystickKnobEl.style.top  = (50 + touchMoveY*37.5) + '%';
+      } else {
+        if (t.identifier !== rightTouchId) continue;
+        touchLookX += (t.clientX - lastTouchLookX) * 0.005;
+        lastTouchLookX = t.clientX;
+      }
     }
-  }
-});
-touchLeftEl.addEventListener('touchcancel', function(e) {
-  for (var i = 0; i < e.changedTouches.length; i++) {
-    if (e.changedTouches[i].identifier === leftTouchId) {
-      leftTouchId = null;
-      touchMoveX = 0;
-      touchMoveY = 0;
-      joystickBaseEl.classList.remove('active');
-      joystickKnobEl.style.left = '50%';
-      joystickKnobEl.style.top = '50%';
+  }, {passive:false});
+  el.addEventListener('touchend', clearT(isLeft));
+  el.addEventListener('touchcancel', clearT(isLeft));
+}
+
+function clearT(isLeft) {
+  return function(e) {
+    for (var i = 0; i < e.changedTouches.length; i++) {
+      var id = e.changedTouches[i].identifier;
+      if (isLeft && id === leftTouchId) {
+        leftTouchId = null; touchMoveX = 0; touchMoveY = 0;
+        joystickBaseEl.classList.remove('active');
+        joystickKnobEl.style.left = '50%'; joystickKnobEl.style.top = '50%';
+      }
+      if (!isLeft && id === rightTouchId) { rightTouchId = null; touchLookX = 0; }
     }
-  }
-});
+  };
+}
 
-// Right zone: drag to look
-var lastTouchLookX = 0;
-touchRightEl.addEventListener('touchstart', function(e) {
-  e.preventDefault();
-  for (var i = 0; i < e.changedTouches.length; i++) {
-    var t = e.changedTouches[i];
-    if (rightTouchId !== null) continue;
-    rightTouchId = t.identifier;
-    lastTouchLookX = t.clientX;
-  }
-}, { passive: false });
+addTouch(touchLeftEl, true);
+addTouch(touchRightEl, false);
 
-touchRightEl.addEventListener('touchmove', function(e) {
-  e.preventDefault();
-  for (var i = 0; i < e.changedTouches.length; i++) {
-    var t = e.changedTouches[i];
-    if (t.identifier !== rightTouchId) continue;
-    var deltaX = t.clientX - lastTouchLookX;
-    touchLookX += deltaX * 0.005;  // same sensitivity as mouse
-    lastTouchLookX = t.clientX;
-  }
-}, { passive: false });
+// ─── Z-BUFFER ───
+var ZBuffer = new Float64Array(W);
 
-touchRightEl.addEventListener('touchend', function(e) {
-  for (var i = 0; i < e.changedTouches.length; i++) {
-    if (e.changedTouches[i].identifier === rightTouchId) {
-      rightTouchId = null;
-      touchLookX = 0;
-    }
-  }
-});
-touchRightEl.addEventListener('touchcancel', function(e) {
-  for (var i = 0; i < e.changedTouches.length; i++) {
-    if (e.changedTouches[i].identifier === rightTouchId) {
-      rightTouchId = null;
-      touchLookX = 0;
-    }
-  }
-});
-
-// ─── Z-buffer ───
-var zBuffer = new Float64Array(W);
-
-// ─── RAYCASTER (DDA) ───
+// ─── RAYCASTER ───
 function castRay(angle) {
-  var sin = Math.sin(angle);
-  var cos = Math.cos(angle);
-  
-  var mapX = Math.floor(player.x);
-  var mapY = Math.floor(player.y);
-  
-  var deltaDistX = Math.abs(1 / cos);
-  var deltaDistY = Math.abs(1 / sin);
-  
+  var sin = Math.sin(angle), cos = Math.cos(angle);
+  var mapX = Math.floor(player.x), mapY = Math.floor(player.y);
+  var deltaDistX = Math.abs(1/cos), deltaDistY = Math.abs(1/sin);
   var stepX, stepY, sideDistX, sideDistY;
-  
   if (cos < 0) { stepX = -1; sideDistX = (player.x - mapX) * deltaDistX; }
-  else { stepX = 1; sideDistX = (mapX + 1 - player.x) * deltaDistX; }
-  
+  else         { stepX =  1; sideDistX = (mapX + 1 - player.x) * deltaDistX; }
   if (sin < 0) { stepY = -1; sideDistY = (player.y - mapY) * deltaDistY; }
-  else { stepY = 1; sideDistY = (mapY + 1 - player.y) * deltaDistY; }
-  
-  var hit = false, side = 0, wallType = 1;
-  var maxIter = 64;
-  
+  else         { stepY =  1; sideDistY = (mapY + 1 - player.y) * deltaDistY; }
+  var hit = false, side = 0, wallType = 1, maxIter = 64;
   while (!hit && maxIter-- > 0) {
-    if (sideDistX < sideDistY) {
-      sideDistX += deltaDistX; mapX += stepX; side = 0;
-    } else {
-      sideDistY += deltaDistY; mapY += stepY; side = 1;
-    }
-    if (mapY >= 0 && mapY < MAP_SIZE && mapX >= 0 && mapX < MAP_SIZE) {
+    if (sideDistX < sideDistY) { sideDistX += deltaDistX; mapX += stepX; side = 0; }
+    else                       { sideDistY += deltaDistY; mapY += stepY; side = 1; }
+    if (mapY>=0 && mapY<MAP_SIZE && mapX>=0 && mapX<MAP_SIZE) {
       var cell = MAP[mapY][mapX];
       if (cell > 0) { hit = true; wallType = cell; }
     } else { hit = true; }
   }
-  
-  var perpDist;
-  if (side === 0) perpDist = (mapX - player.x + (1 - stepX) / 2) / cos;
-  else perpDist = (mapY - player.y + (1 - stepY) / 2) / sin;
-  
-  var wallX;
-  if (side === 0) wallX = player.y + perpDist * sin;
-  else wallX = player.x + perpDist * cos;
+  var perpDist = side===0 ? (mapX-player.x+(1-stepX)/2)/cos : (mapY-player.y+(1-stepY)/2)/sin;
+  var wallX = side===0 ? player.y+perpDist*sin : player.x+perpDist*cos;
   wallX -= Math.floor(wallX);
-  
-  return { perpDist: perpDist, wallType: wallType, side: side, texX: Math.floor(wallX * TEX) };
+  return { perpDist:perpDist, wallType:wallType, side:side, texX:Math.floor(wallX*TEX) };
 }
 
-// ─── GET TEXTURE ID ───
-function getTexId(wallType) {
-  if (wallType === 1) return 'stone';
-  if (wallType === 2) return 'mirror';
-  if (wallType === 3) return 'door';
+function getTexId(wt) {
+  if (wt===1) return 'stone'; if (wt===2) return 'mirror'; if (wt===3) return 'door';
   return 'stone';
 }
 
-// ─── RENDER ───
+// ─── RENDER (walls) ───
 function render() {
-  // Ceiling
-  ctx.fillStyle = '#f5f2ed';
-  ctx.fillRect(0, 0, W, H / 2);
-  
-  // Floor
-  ctx.fillStyle = '#d8d0c4';
-  ctx.fillRect(0, H / 2, W, H / 2);
-  
-  // Raycast each column
-  for (var x = 0; x < W; x++) {
-    var rayAngle = player.angle - HALF_FOV + (x / W) * FOV;
+  ctx.fillStyle = '#f5f2ed'; ctx.fillRect(0,0,W,H/2);
+  ctx.fillStyle = '#d8d0c4'; ctx.fillRect(0,H/2,W,H/2);
+  for (var x=0; x<W; x++) {
+    var rayAngle = player.angle - HALF_FOV + (x/W)*FOV;
     var ray = castRay(rayAngle);
-    
     var dist = ray.perpDist * Math.cos(rayAngle - player.angle);
-    zBuffer[x] = dist;
-    
-    var lineHeight = Math.floor((WALL_SCALE / dist) * (H / (2 * Math.tan(HALF_FOV))));
-    var drawStart = Math.max(0, Math.floor(H / 2 - lineHeight / 2));
-    var drawEnd = Math.min(H, Math.floor(H / 2 + lineHeight / 2));
-    
+    ZBuffer[x] = dist;
+    var lineHeight = Math.floor((WALL_SCALE/dist)*(H/(2*Math.tan(HALF_FOV))));
+    var drawStart = Math.max(0, Math.floor(H/2-lineHeight/2));
+    var drawEnd   = Math.min(H, Math.floor(H/2+lineHeight/2));
     var tc = textureCanvases[getTexId(ray.wallType)];
     if (!tc) continue;
-    
-    ctx.drawImage(tc, ray.texX, 0, 1, TEX, x, drawStart, 1, drawEnd - drawStart);
-    
-    // Distance darkening
-    var brightness = Math.max(0.05, Math.min(1, 1 - dist / 14));
+    ctx.drawImage(tc, ray.texX,0,1,TEX, x,drawStart,1,drawEnd-drawStart);
+    var brightness = Math.max(0.05, Math.min(1, 1-dist/14));
     if (brightness < 1) {
-      ctx.fillStyle = 'rgba(10,8,6,' + (1 - brightness) + ')';
-      ctx.fillRect(x, drawStart, 1, drawEnd - drawStart);
+      ctx.fillStyle = 'rgba(10,8,6,' + (1-brightness) + ')';
+      ctx.fillRect(x, drawStart, 1, drawEnd-drawStart);
     }
-    
-    // Side wall shadow
-    if (ray.side === 1) {
-      ctx.fillStyle = 'rgba(10,8,6,0.15)';
-      ctx.fillRect(x, drawStart, 1, drawEnd - drawStart);
+    if (ray.side===1) { ctx.fillStyle='rgba(10,8,6,0.15)'; ctx.fillRect(x,drawStart,1,drawEnd-drawStart); }
+  }
+  ctx.strokeStyle = 'rgba(184,68,42,0.6)'; ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(W/2-6, H/2); ctx.lineTo(W/2+6, H/2);
+  ctx.moveTo(W/2, H/2-6); ctx.lineTo(W/2, H/2+6);
+  ctx.stroke();
+}
+
+// ─── RENDER SPRITES ───
+function renderSprites() {
+  var visible = [];
+  for (var i=0; i<sprites.length; i++) {
+    var sp = sprites[i];
+    var dx = sp.x-player.x, dy = sp.y-player.y;
+    var dist = Math.sqrt(dx*dx+dy*dy);
+    if (dist < 0.3) continue;
+    if (sp.pickedUp) continue;
+    if (sp.type === 'enemy' && sp.deadFrames > 30) continue;
+    visible.push({sp:sp, dist:dist, dx:dx, dy:dy});
+  }
+  visible.sort(function(a,b) { return b.dist - a.dist; });
+  for (var v=0; v<visible.length; v++) {
+    var item = visible[v], sp = item.sp, dist = item.dist;
+    var dx = item.dx, dy = item.dy;
+    var relX = dx*Math.cos(player.angle)+dy*Math.sin(player.angle);
+    var relY = -dx*Math.sin(player.angle)+dy*Math.cos(player.angle);
+    if (relY <= 0.1) continue;
+    var screenX = Math.floor((W/2)*(1+relX/relY));
+    var spriteH, spriteW, texKey;
+    if (sp.type === 'enemy') {
+      if (sp.dead)      { texKey = 'enemyDead'; spriteH = Math.floor(Math.abs(H/relY)*WALL_SCALE*0.25); }
+      else if (sp.pain>0) { texKey = 'enemyPain'; spriteH = Math.floor(Math.abs(H/relY)*WALL_SCALE); }
+      else              { texKey = 'enemy';     spriteH = Math.floor(Math.abs(H/relY)*WALL_SCALE); }
+      spriteW = Math.floor(spriteH*(80/96));
+    } else {
+      texKey = sp.type;
+      spriteH = Math.floor(Math.abs(H/relY)*WALL_SCALE*0.35);
+      spriteW = spriteH;
+    }
+    if (spriteW < 1) continue;
+    var drawY = Math.floor(H/2 - spriteH/2);
+    if (sp.type === 'enemy' && sp.dead) drawY = H - Math.floor(spriteH*0.6);
+    if (sp.type !== 'enemy') { var bobY = Math.sin(Date.now()*0.005+sp.x*10); drawY += bobY*4; }
+    var startS = Math.floor(-spriteW/2+screenX), endS = Math.floor(spriteW/2+screenX);
+    var tex = spriteTextures[texKey];
+    if (!tex) continue;
+    var texW = tex.width, texH = tex.height;
+    for (var stripe=startS; stripe<endS; stripe++) {
+      if (stripe<0 || stripe>=W) continue;
+      if (relY > ZBuffer[stripe]) continue;
+      var tX = Math.floor(((stripe-startS)/(endS-startS))*texW);
+      if (tX<0 || tX>=texW) continue;
+      var alpha = 1;
+      if (sp.type === 'enemy' && sp.dead) alpha = Math.max(0.1, 1-sp.deadFrames/30);
+      if (dist>8) alpha *= Math.max(0.2, 1-(dist-8)/6);
+      ctx.globalAlpha = alpha;
+      ctx.drawImage(tex, tX,0,1,texH, stripe,drawY,1,spriteH);
+      ctx.globalAlpha = 1;
     }
   }
-  
-  // Crosshair
-  ctx.strokeStyle = 'rgba(184,68,42,0.6)';
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  ctx.moveTo(W / 2 - 6, H / 2); ctx.lineTo(W / 2 + 6, H / 2);
-  ctx.moveTo(W / 2, H / 2 - 6); ctx.lineTo(W / 2, H / 2 + 6);
-  ctx.stroke();
+}
+
+// ─── RENDER WEAPON ───
+function renderWeapon() {
+  wctx.clearRect(0,0,200,180);
+  if (!weaponTex) return;
+  var bob = 0;
+  if (touchMoveX!==0||touchMoveY!==0||keys['KeyW']||keys['KeyS']||keys['KeyA']||keys['KeyD']) {
+    bob = Math.sin(Date.now()*0.008)*3;
+  }
+  var offsetY = weaponRecoil + bob;
+  wctx.drawImage(weaponTex, 0, offsetY, 200, 180);
 }
 
 // ─── MOVEMENT ───
 function updateMovement() {
   player.angle += mouseTurn + touchLookX;
-  mouseTurn = 0;
-  touchLookX = 0;
-  
+  mouseTurn = 0; touchLookX = 0;
   var dx = 0, dy = 0;
-  
-  // Keyboard input
-  if (keys['KeyW'] || keys['ArrowUp']) {
-    dx += Math.cos(player.angle) * MOVE_SPD;
-    dy += Math.sin(player.angle) * MOVE_SPD;
-  }
-  if (keys['KeyS'] || keys['ArrowDown']) {
-    dx -= Math.cos(player.angle) * MOVE_SPD;
-    dy -= Math.sin(player.angle) * MOVE_SPD;
-  }
-  if (keys['KeyA']) {
-    dx += Math.cos(player.angle - Math.PI / 2) * MOVE_SPD;
-    dy += Math.sin(player.angle - Math.PI / 2) * MOVE_SPD;
-  }
-  if (keys['KeyD']) {
-    dx += Math.cos(player.angle + Math.PI / 2) * MOVE_SPD;
-    dy += Math.sin(player.angle + Math.PI / 2) * MOVE_SPD;
-  }
+  if (keys['KeyW']||keys['ArrowUp'])  { dx += Math.cos(player.angle)*MOVE_SPD; dy += Math.sin(player.angle)*MOVE_SPD; }
+  if (keys['KeyS']||keys['ArrowDown']) { dx -= Math.cos(player.angle)*MOVE_SPD; dy -= Math.sin(player.angle)*MOVE_SPD; }
+  if (keys['KeyA'])  { dx += Math.cos(player.angle-Math.PI/2)*MOVE_SPD; dy += Math.sin(player.angle-Math.PI/2)*MOVE_SPD; }
+  if (keys['KeyD'])  { dx += Math.cos(player.angle+Math.PI/2)*MOVE_SPD; dy += Math.sin(player.angle+Math.PI/2)*MOVE_SPD; }
   if (keys['ArrowLeft']) player.angle -= TURN_SPD;
   if (keys['ArrowRight']) player.angle += TURN_SPD;
-  
-  // Touch joystick input
-  if (touchMoveY !== 0 || touchMoveX !== 0) {
-    // Forward/backward (negative Y is up = forward)
-    var fwdScale = -touchMoveY * MOVE_SPD;
-    dx += Math.cos(player.angle) * fwdScale;
-    dy += Math.sin(player.angle) * fwdScale;
-    // Strafe (positive X is right)
-    var strafeScale = touchMoveX * MOVE_SPD;
-    dx += Math.cos(player.angle + Math.PI / 2) * strafeScale;
-    dy += Math.sin(player.angle + Math.PI / 2) * strafeScale;
+  if (touchMoveY!==0||touchMoveX!==0) {
+    var fwd = -touchMoveY*MOVE_SPD;
+    dx += Math.cos(player.angle)*fwd; dy += Math.sin(player.angle)*fwd;
+    var strafe = touchMoveX*MOVE_SPD;
+    dx += Math.cos(player.angle+Math.PI/2)*strafe; dy += Math.sin(player.angle+Math.PI/2)*strafe;
   }
-  
-  var r = 0.2;
-  var nx = player.x + dx;
-  var ny = player.y + dy;
-  
-  // X axis
-  if (inBounds(nx - r, player.y - r) && inBounds(nx + r, player.y - r) &&
-      inBounds(nx - r, player.y + r) && inBounds(nx + r, player.y + r)) {
-    player.x = nx;
-  }
-  // Y axis
-  if (inBounds(player.x - r, ny - r) && inBounds(player.x + r, ny - r) &&
-      inBounds(player.x - r, ny + r) && inBounds(player.x + r, ny + r)) {
-    player.y = ny;
-  }
+  var r = 0.2, nx = player.x+dx, ny = player.y+dy;
+  if (inBounds(nx-r,player.y-r)&&inBounds(nx+r,player.y-r)&&inBounds(nx-r,player.y+r)&&inBounds(nx+r,player.y+r)) player.x = nx;
+  if (inBounds(player.x-r,ny-r)&&inBounds(player.x+r,ny-r)&&inBounds(player.x-r,ny+r)&&inBounds(player.x+r,ny+r)) player.y = ny;
 }
 
 function inBounds(x, y) {
-  var mx = Math.floor(x);
-  var my = Math.floor(y);
-  if (mx < 0 || mx >= MAP_SIZE || my < 0 || my >= MAP_SIZE) return false;
-  return MAP[my][mx] === 0;
+  var mx=Math.floor(x), my=Math.floor(y);
+  if (mx<0||mx>=MAP_SIZE||my<0||my>=MAP_SIZE) return false;
+  return MAP[my][mx]===0;
 }
+
+// ─── UPDATE SPRITES ───
+function updateSprites() {
+  for (var i=0; i<sprites.length; i++) {
+    var sp = sprites[i];
+    if (sp.type === 'enemy') {
+      if (sp.dead) { sp.deadFrames++; continue; }
+      if (sp.pain > 0) { sp.pain--; continue; }
+      var edx = player.x-sp.x, edy = player.y-sp.y;
+      var edist = Math.sqrt(edx*edx+edy*edy);
+      if (edist < 10 && edist > 0.8) {
+        var nnx = sp.x+(edx/edist)*sp.speed, nny = sp.y+(edy/edist)*sp.speed;
+        var imx = Math.floor(nnx), imy = Math.floor(nny);
+        if (imx>=0 && imx<MAP_SIZE && imy>=0 && imy<MAP_SIZE && MAP[imy][imx]===0) { sp.x=nnx; sp.y=nny; }
+      }
+      if (edist < 1.0) { health -= 0.3; if (health<0) health=0; }
+    }
+    if ((sp.type==='health'||sp.type==='desire') && !sp.pickedUp) {
+      var px=player.x-sp.x, py=player.y-sp.y;
+      if (Math.sqrt(px*px+py*py)<0.6) {
+        sp.pickedUp = true;
+        if (sp.type==='health') { health=Math.min(100,health+25); score+=25; }
+        else { desire=Math.min(100,desire+15); score+=50; }
+      }
+    }
+  }
+}
+
+// ─── SHOOT ───
+function doShoot() {
+  if (shootCooldown>0 || gameState!=='playing') return;
+  shootCooldown=15; weaponRecoil=8;
+  playShoot();
+  var flash = document.getElementById('muzzleFlash');
+  flash.classList.add('flash');
+  setTimeout(function(){flash.classList.remove('flash');}, 50);
+  var hitDist = Infinity, hitSprite = null;
+  for (var i=0; i<sprites.length; i++) {
+    var sp = sprites[i];
+    if (sp.type!=='enemy' || sp.dead) continue;
+    var sx = sp.x-player.x, sy = sp.y-player.y;
+    var sdist = Math.sqrt(sx*sx+sy*sy);
+    var spAngle = Math.atan2(sy, sx);
+    var diff = spAngle - player.angle;
+    while (diff>Math.PI) diff-=2*Math.PI;
+    while (diff<-Math.PI) diff+=2*Math.PI;
+    var angW = 0.5/sdist;
+    if (Math.abs(diff)<angW && sdist<hitDist) {
+      var wall = castRay(player.angle);
+      if (sdist < wall.perpDist) { hitDist=sdist; hitSprite=sp; }
+    }
+  }
+  if (hitSprite) {
+    hitSprite.hp--; hitSprite.pain=12;
+    playHit();
+    if (hitSprite.hp<=0) { hitSprite.dead=true; hitSprite.deadFrames=0; kills++; score+=100; }
+  }
+}
+
+document.addEventListener('dblclick', doShoot);
+
+// ─── HUD ───
+function updateHUD() {
+  var hb = document.getElementById('healthBar'), db = document.getElementById('desireBar'), sd = document.getElementById('scoreDisplay');
+  if(hb) hb.style.width=health+'%'; if(db) db.style.width=desire+'%';
+  if(sd) sd.textContent='K:'+kills+' S:'+score;
+}
+
+// ─── DEATH ───
+function showDeathScreen() {
+  var o = document.getElementById('deathOverlay');
+  o.innerHTML='<div style="font-size:32px">THE GAZE LOOKS BACK</div><div style="font-size:16px;color:#888;margin-top:12px">Kills: '+kills+' &middot; Score: '+score+'</div><div style="font-size:14px;color:#555;margin-top:16px">Tap to re-enter</div>';
+  o.classList.add('visible');
+  var restart = function() {
+    o.removeEventListener('click', restart); o.removeEventListener('touchstart', restart);
+    o.classList.remove('visible');
+    player.x=1.5; player.y=1.5; player.angle=0;
+    health=100; desire=100; score=0; kills=0;
+    for (var i=0; i<sprites.length; i++) {
+      var s=sprites[i];
+      if(s.type==='enemy'){s.hp=3;s.pain=0;s.dead=false;s.deadFrames=0;}
+      if(s.type==='health'||s.type==='desire'){s.pickedUp=false;}
+    }
+    gameState='playing';
+  };
+  o.addEventListener('click', restart, {once:true});
+  o.addEventListener('touchstart', restart, {once:true});
+}
+
+// ─── TITLE ───
+var titleEl = document.getElementById('titleScreen');
+function enterGame() {
+  initAudio();
+  if (titleEl && titleEl.style.display!=='none') {
+    titleEl.style.transition='opacity 0.5s'; titleEl.style.opacity='0';
+    setTimeout(function(){if(titleEl) titleEl.style.display='none';}, 500);
+    gameState='playing';
+  }
+}
+titleEl.addEventListener('click', enterGame);
+titleEl.addEventListener('touchstart', enterGame);
 
 // ─── GAME LOOP ───
-var lastTime = 0;
-var frameCount = 0;
-var fpsTime = 0;
-
 function gameLoop(time) {
-  frameCount++;
-  if (time - fpsTime > 1000) {
-    document.getElementById('fpsHUD').textContent = frameCount + ' FPS';
-    frameCount = 0;
-    fpsTime = time;
+  if (gameState==='playing') {
+    updateMovement();
+    updateSprites();
+    updateHUD();
+    if (shootCooldown>0) shootCooldown--;
+    if (weaponRecoil>0) weaponRecoil-=0.5;
+    var moving=(touchMoveX!==0||touchMoveY!==0||keys['KeyW']||keys['KeyS']||keys['KeyA']||keys['KeyD']);
+    if (moving) { footstepTimer++; if(footstepTimer>15){playFootstep(); footstepTimer=0;} }
+    render();
+    renderSprites();
+    renderWeapon();
+    if (health<=0) { gameState='dead'; showDeathScreen(); }
   }
-  updateMovement();
-  render();
   requestAnimationFrame(gameLoop);
 }
-
-// ─── START ───
-function startGame() {
-  var msg = document.getElementById('msg');
-  if (msg) msg.style.display = 'none';
-  requestAnimationFrame(gameLoop);
-}
-
-startGame();
-
+requestAnimationFrame(gameLoop);
 </script>
+
 </body>
 </html>
