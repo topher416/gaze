@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,user-scalable=no">
+<title>The Gaze</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { width: 100%; height: 100%; background: #0a0806; overflow: hidden; touch-action: none; }
+canvas {
+  display: block; position: absolute; top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  image-rendering: pixelated;
+  -ms-interpolation-mode: nearest-neighbor;
+}
+#hud {
+  position: absolute; bottom: 0; left: 0; right: 0; height: 40px;
+  background: linear-gradient(0deg, #0a0806, #1a1816);
+  border-top: 2px solid #b8442a;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 16px;
+  font-family: 'Courier New', monospace; color: #555; font-size: 11px;
+}
+.hud-fill { height: 10px; background: #b8442a; transition: width 0.15s; }
+.hud-bar { width: 140px; height: 10px; background: #1a1816; border: 1px solid #333; }
+#titleScreen { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: #0a0806; z-index: 25; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; font-family: "Courier New", monospace; color: #f5f2ed; pointer-events: auto; cursor: pointer; }
+#titleScreen h1 { font-size: 48px; color: #b8442a; letter-spacing: 4px; margin: 0; }
+#titleScreen .subtitle { color: #555; font-size: 14px; font-style: italic; margin: 0; }
+#titleScreen .tap { color: #888; font-size: 14px; margin: 0; }
+#titleScreen .version { color: #333; font-size: 11px; margin-top: 16px; }
+.touch-zone { position: absolute; bottom: 0; height: calc(100% - 40px); pointer-events: auto; z-index: 10; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+#touchLeft { left: 0; width: 50%; }
+#touchRight { right: 0; width: 50%; }
+#joystickBase { position: absolute; width: 35%; aspect-ratio: 1; max-width: 160px; max-height: 160px; border: 2px solid rgba(184,68,42,0.25); border-radius: 50%; transform: translateX(-50%); pointer-events: none; z-index: 11; opacity: 0; transition: opacity 0.2s; }
+#joystickBase.active { opacity: 1; }
+#joystickKnob { position: absolute; top: 50%; left: 50%; width: 25%; aspect-ratio: 1; max-width: 40px; max-height: 40px; background: rgba(184,68,42,0.4); border: 1px solid rgba(184,68,42,0.5); border-radius: 50%; transform: translate(-50%, -50%); pointer-events: none; z-index: 12; }
+#deathOverlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: rgba(10,8,6,0); pointer-events: auto; z-index: 20; display: none; align-items: center; justify-content: center; flex-direction: column; gap: 16px; font-family: "Courier New", monospace; color: #f5f2ed; text-align: center; text-shadow: 0 0 20px #0a0806; }
+#deathOverlay.visible { display: flex; background: rgba(10,8,6,0.85); }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="touchLeft" class="touch-zone"></div>
+<div id="touchRight" class="touch-zone"></div>
+<div id="joystickBase"><div id="joystickKnob"></div></div>
+<div id="deathOverlay"></div>
+<div id="titleScreen">
+  <h1>THE GAZE</h1>
+  <p class="subtitle">"What sees you, sees itself seeing."</p>
+  <p class="tap">Tap to enter</p>
+  <p class="version">v0.4 — the gaze mechanic</p>
+</div>
+<div id="hud">
+  <span style="color:#b8442a">DESIRE</span>
+  <div class="hud-bar"><div class="hud-fill" id="desireBar" style="width:100%"></div></div>
+  <span id="hudMsg"></span>
+  <span id="fpsHUD"></span>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════
+//  THE GAZE v0.2.1 — etched textures, no weapon
+// ═══════════════════════════════════════════════════════════
+
+var W = 640, H = 400;
+var TEX = 256;  // high-res textures for etching detail
+var MAP_SIZE = 16;
+var FOV = Math.PI / 3;
+var HALF_FOV = FOV / 2;
+var MOVE_SPD = 0.04;
+var TURN_SPD = 0.03;
+var WALL_SCALE = 1.2;
+
+var canvas = document.getElementById("c");
+var ctx = canvas.getContext("2d", { alpha: false });
+canvas.width = W; canvas.height = H;
+
+// ─── HELPER: scratchboard hatching helper ───
+function hatch(tc, x1,y1,x2,y2, spacing, color, width) {
+  var dx = x2-x1, dy = y2-y1;
+  var len = Math.sqrt(dx*dx+dy*dy);
+  var nx = -dy/len * spacing, ny = dx/len * spacing;
+  tc.strokeStyle = color; tc.lineWidth = width;
+  tc.beginPath();
+  for (var i = -Math.ceil(len/spacing)*2; i < Math.ceil(len/spacing)*2; i++) {
+    var cx = x1+nx*i, cy = y1+ny*i;
+    tc.moveTo(cx,cy); tc.lineTo(cx+dx,cy+dy);
+  }
+  tc.stroke();
+}
+
+// ─── STONE WALL (256×256) — irregular blocks, dense crosshatching ───
+function genStone() {
+  var c = document.createElement("canvas"); c.width = 256; c.height = 256;
+  var tc = c.getContext("2d");
+  tc.fillStyle = "#f5f2ed"; tc.fillRect(0,0,256,256);
+  // Irregular block boundaries (rough masonry)
+  var bx = [[0,0,128,85],[128,0,128,85],[0,85,128,85],[128,85,128,85],[0,170,128,86],[128,170,128,86]];
+  // Add vertical offset staggering for realism
+  bx = [];
+  for (var row=0;row<3;row++){ for(var col=0;col<2;col++){
+    var ox = row%2===0 ? 0 : -15;
+    bx.push({x:col*128+ox+8,y:row*85+8,w:112,h:69});
+  }}
+  bx.forEach(function(b){
+    // Block interior: horizontal hatching (light density)
+    hatch(tc, b.x,b.y, b.x+b.w,b.y, 4, "rgba(26,24,22,0.08)", 0.5);
+    // Darker block surface
+    tc.fillStyle = "#1a1816";
+    tc.globalAlpha = 0.7;
+    tc.fillRect(b.x, b.y, b.w, b.h);
+    tc.globalAlpha = 1;
+    // Dense horizontal etching lines on face
+    tc.strokeStyle = "rgba(245,242,237,0.15)";
+    tc.lineWidth = 0.5;
+    for (var y=b.y+3;y<b.y+b.h-3;y+=3){
+      tc.beginPath(); tc.moveTo(b.x+2,y); tc.lineTo(b.x+b.w-2,y); tc.stroke();
+    }
+    // Shadow edge
+    tc.strokeStyle = "#0a0806";
+    tc.lineWidth = 2;
+    tc.strokeRect(b.x, b.y, b.w, b.h);
+    // Inner highlight
+    tc.strokeStyle = "rgba(245,242,237,0.1)";
+    tc.lineWidth = 1;
+    tc.strokeRect(b.x+2, b.y+2, b.w-4, b.h-4);
+  });
+  // Deep mortar gaps
+  tc.strokeStyle = "#0a0806"; tc.lineWidth = 4;
+  // Horizontal mortar
+  for (var r=1;r<3;r++){
+    var my = r*85;
+    tc.beginPath(); tc.moveTo(0,my); tc.lineTo(256,my); tc.stroke();
+  }
+  // Vertical mortar (staggered)
+  tc.beginPath(); tc.moveTo(128,0); tc.lineTo(128,85); tc.stroke();
+  tc.beginPath(); tc.moveTo(113,85); tc.lineTo(113,170); tc.stroke();
+  tc.beginPath(); tc.moveTo(143,85); tc.lineTo(143,170); tc.stroke();
+  tc.beginPath(); tc.moveTo(128,170); tc.lineTo(128,256); tc.stroke();
+  // Surface scratches (random detail lines)
+  tc.strokeStyle = "rgba(245,242,237,0.06)"; tc.lineWidth = 0.5;
+  for(var i=0;i<30;i++){
+    var sx=Math.random()*256,sy=Math.random()*256;
+    tc.beginPath();tc.moveTo(sx,sy);tc.lineTo(sx+Math.random()*20-10,sy+Math.random()*2-1);tc.stroke();
+  }
+  return c;
+}
+
+// ─── MIRROR WALL (256×256) — reflective surface, ornate frame, blood drips ───
+function genMirror() {
+  var c = document.createElement("canvas"); c.width = 256; c.height = 256;
+  var tc = c.getContext("2d");
+  tc.fillStyle = "#f5f2ed"; tc.fillRect(0,0,256,256);
+  // Stone wall behind (simplified)
+  hatch(tc, 0,0,256,256, 12, "rgba(26,24,22,0.06)", 0.5);
+  // Mirror frame — ornate with detailed hatching
+  var fx=16,fy=16,fw=224,fh=224;
+  tc.fillStyle = "#1a1816"; tc.globalAlpha = 0.8;
+  tc.beginPath();
+  tc.moveTo(fx,fy); tc.quadraticCurveTo(fx+fw/2,fy-8,fx+fw,fy);
+  tc.lineTo(fx+fw,fy+fh);
+  tc.quadraticCurveTo(fx+fw/2,fy+fh+8,fx,fy+fh);
+  tc.closePath(); tc.fill(); tc.globalAlpha = 1;
+  // Frame detail: crosshatched carving
+  tc.strokeStyle = "#b8442a"; tc.lineWidth = 3;
+  tc.beginPath();
+  tc.moveTo(fx,fy); tc.quadraticCurveTo(fx+fw/2,fy-8,fx+fw,fy);
+  tc.lineTo(fx+fw,fy+fh);
+  tc.quadraticCurveTo(fx+fw/2,fy+fh+8,fx,fy+fh);
+  tc.closePath(); tc.stroke();
+  // Inner frame line
+  tc.strokeStyle = "rgba(245,242,237,0.2)"; tc.lineWidth = 1;
+  tc.beginPath();
+  tc.moveTo(fx+8,fy+8); tc.quadraticCurveTo(fx+fw/2,fy,fx+fw-8,fy+8);
+  tc.lineTo(fx+fw-8,fy+fh-8);
+  tc.quadraticCurveTo(fx+fw/2,fy+fh,fx+8,fy+fh-8);
+  tc.closePath(); tc.stroke();
+  // Mirror surface: subtle reflection hatching
+  hatch(tc, 20,20, 236,236, 6, "rgba(245,242,237,0.04)", 0.3);
+  tc.fillStyle = "#1a1816"; tc.globalAlpha = 0.03;
+  tc.fillRect(24,24,208,208); tc.globalAlpha = 1;
+  // "Je" scratched — with etched line detail
+  tc.strokeStyle = "rgba(10,8,6,0.2)"; tc.lineWidth = 2;
+  tc.font = "bold 48px serif"; tc.textAlign = "center"; tc.textBaseline = "middle";
+  tc.strokeText("Je", 128, 100);
+  // Blood drips from bottom of Je
+  tc.strokeStyle = "#b8442a"; tc.lineWidth = 3; tc.lineCap = "round"; tc.globalAlpha = 0.7;
+  tc.beginPath(); tc.moveTo(108,115); tc.quadraticCurveTo(105,140,112,165); tc.quadraticCurveTo(118,175,124,168); tc.stroke();
+  tc.lineWidth = 2;
+  tc.beginPath(); tc.moveTo(124,168); tc.quadraticCurveTo(120,172,118,178); tc.stroke();
+  tc.lineWidth = 1.5; tc.globalAlpha = 0.3;
+  tc.beginPath(); tc.moveTo(108,120); tc.quadraticCurveTo(110,135,106,148); tc.stroke();
+  tc.beginPath(); tc.moveTo(106,120); tc.quadraticCurveTo(103,132,107,142); tc.stroke();
+  tc.globalAlpha = 1;
+  // Corner ornaments
+  [[20,20],[236,20],[20,236],[236,236]].forEach(function(p){
+    tc.fillStyle = "#b8442a"; tc.globalAlpha = 0.5;
+    tc.beginPath(); tc.arc(p[0],p[1],8,0,Math.PI*2); tc.fill();
+    tc.fillStyle = "#1a1816";
+    tc.beginPath(); tc.arc(p[0],p[1],4,0,Math.PI*2); tc.fill();
+    tc.globalAlpha = 1;
+  });
+  return c;
+}
+
+// ─── DOOR (256×256) — arched stone, iron bands, etched lock roundel ───
+function genDoor() {
+  var c = document.createElement("canvas"); c.width = 256; c.height = 256;
+  var tc = c.getContext("2d");
+  tc.fillStyle = "#f5f2ed"; tc.fillRect(0,0,256,256);
+  // Surrounding wall hatching
+  hatch(tc, 0,0,256,60, 8, "rgba(26,24,22,0.1)", 0.5);
+  // Stone arch
+  tc.strokeStyle = "#1a1816"; tc.lineWidth = 6; tc.globalAlpha = 0.6;
+  tc.beginPath(); tc.arc(128,80,90,Math.PI,0); tc.stroke(); tc.globalAlpha = 1;
+  tc.fillStyle = "#1a1816";
+  tc.fillRect(30,80,60,176); tc.fillRect(166,80,60,176);
+  // Arch fill (keystone pattern)
+  tc.fillStyle = "#1a1816"; tc.globalAlpha = 0.4;
+  tc.beginPath(); tc.arc(128,80,84,Math.PI,0); tc.fillRect(38,80,180,8); tc.fill(); tc.globalAlpha = 1;
+  // Door panels (two wooden doors)
+  tc.fillStyle = "#1a1816"; tc.globalAlpha = 0.3;
+  tc.fillRect(48,88,76,168); tc.fillRect(132,88,76,168); tc.globalAlpha = 1;
+  // Panel hatching
+  tc.strokeStyle = "rgba(245,242,237,0.08)"; tc.lineWidth = 0.5;
+  for(var y=92;y<252;y+=4){
+    tc.beginPath();tc.moveTo(52,y);tc.lineTo(120,y);tc.stroke();
+    tc.beginPath();tc.moveTo(136,y);tc.lineTo(204,y);tc.stroke();
+  }
+  // Iron reinforcement bands (crosshatch)
+  tc.strokeStyle = "#0a0806"; tc.lineWidth = 3; tc.globalAlpha = 0.5;
+  [100,130,160,190,220].forEach(function(y){
+    tc.beginPath();tc.moveTo(50,y);tc.lineTo(122,y);tc.stroke();
+    tc.beginPath();tc.moveTo(134,y);tc.lineTo(206,y);tc.stroke();
+  });
+  tc.globalAlpha = 1;
+  // Lock roundel (center)
+  tc.strokeStyle = "#0a0806"; tc.lineWidth = 2; tc.globalAlpha = 0.5;
+  tc.beginPath(); tc.arc(128,155,12,0,Math.PI*2); tc.stroke();
+  tc.fillStyle = "#0a0806"; tc.globalAlpha = 0.4;
+  tc.beginPath(); tc.arc(128,155,6,0,Math.PI*2); tc.fill();
+  // Keyhole lines
+  tc.strokeStyle = "#f5f2ed"; tc.lineWidth = 1; tc.globalAlpha = 0.3;
+  tc.beginPath();tc.moveTo(128,148);tc.lineTo(128,162);tc.stroke();
+  tc.beginPath();tc.moveTo(122,155);tc.lineTo(134,155);tc.stroke();
+  tc.globalAlpha = 1;
+  // Center seam
+  tc.strokeStyle = "#0a0806"; tc.lineWidth = 2; tc.globalAlpha = 0.3;
+  tc.beginPath();tc.moveTo(128,86);tc.lineTo(128,256);tc.stroke(); tc.globalAlpha = 1;
+  // Bottom iron threshold
+  tc.fillStyle = "#1a1816"; tc.globalAlpha = 0.7;
+  tc.fillRect(24,248,208,8); tc.globalAlpha = 1;
+  return c;
+}
+
+// ─── ENEMY: Reflection (256×256) — elongated humanoid, scratchboard etched ───
+function genEnemySprite() {
+  var c = document.createElement("canvas"); c.width = 256; c.height = 320;
+  var tc = c.getContext("2d");
+  
+  // === BODY: Emaciated silhouette ===
+  tc.fillStyle = "#1a1816"; tc.globalAlpha = 0.9;
+  // Head (blank — eyes overlaid dynamically)
+  tc.beginPath(); tc.arc(128,48,36,0,Math.PI*2); tc.fill();
+  // Neck/torso
+  tc.beginPath(); tc.moveTo(115,82); tc.lineTo(141,82);
+  tc.lineTo(148,200); tc.lineTo(108,200); tc.closePath(); tc.fill();
+  // Arms reaching
+  tc.strokeStyle = "#1a1816"; tc.lineWidth = 14; tc.lineCap = "round"; tc.globalAlpha = 0.85;
+  tc.beginPath(); tc.moveTo(115,100); tc.quadraticCurveTo(55,150,25,200); tc.stroke();
+  tc.beginPath(); tc.moveTo(141,100); tc.quadraticCurveTo(201,150,231,200); tc.stroke();
+  // Fingers — long, skeletal
+  tc.lineWidth = 4; tc.globalAlpha = 0.7;
+  tc.beginPath(); tc.moveTo(25,200); tc.lineTo(14,218); tc.stroke();
+  tc.beginPath(); tc.moveTo(25,200); tc.lineTo(28,225); tc.stroke();
+  tc.beginPath(); tc.moveTo(25,200); tc.lineTo(36,220); tc.stroke();
+  tc.beginPath(); tc.moveTo(231,200); tc.lineTo(242,218); tc.stroke();
+  tc.beginPath(); tc.moveTo(231,200); tc.lineTo(228,225); tc.stroke();
+  tc.beginPath(); tc.moveTo(231,200); tc.lineTo(220,220); tc.stroke();
+  // Legs
+  tc.lineWidth = 12; tc.globalAlpha = 0.85;
+  tc.beginPath(); tc.moveTo(118,200); tc.lineTo(108,296); tc.lineTo(98,310); tc.stroke();
+  tc.beginPath(); tc.moveTo(138,200); tc.lineTo(148,296); tc.lineTo(158,310); tc.stroke();
+  // Feet
+  tc.lineWidth = 8;
+  tc.beginPath(); tc.moveTo(98,310); tc.lineTo(90,314); tc.stroke();
+  tc.beginPath(); tc.moveTo(158,310); tc.lineTo(166,314); tc.stroke();
+  
+  // === Etching: scratchboard hatching ===
+  tc.strokeStyle = "rgba(245,242,237,0.12)"; tc.lineWidth = 0.5; tc.globalAlpha = 0.12;
+  for(var y=90;y<200;y+=4){ tc.beginPath();tc.moveTo(114,y);tc.lineTo(142,y+Math.sin(y*0.1)*2);tc.stroke(); }
+  tc.strokeStyle = "rgba(10,8,6,0.15)";
+  for(var y=85;y<200;y+=5){ tc.beginPath();tc.moveTo(108,y);tc.lineTo(128,y+3);tc.stroke(); }
+  tc.strokeStyle = "rgba(245,242,237,0.08)";
+  for(var y=204;y<310;y+=4){ tc.beginPath();tc.moveTo(116,y);tc.lineTo(140,y);tc.stroke(); }
+  
+  // === Head surface: blank face with subtle etching (eyes overlaid at render time) ===
+  tc.globalAlpha = 0.06; tc.strokeStyle = "rgba(245,242,237,0.3)"; tc.lineWidth = 0.5;
+  for(var y=22;y<68;y+=3){
+    var w = Math.sqrt(Math.max(0,1 - Math.pow((y-48)/36,2)))*30;
+    tc.beginPath(); tc.moveTo(128-w,y); tc.lineTo(128+w,y); tc.stroke();
+  }
+  
+  tc.globalAlpha = 1;
+  return c;
+}
+function genEnemyPain() {
+  var base = genEnemySprite();
+  var c = document.createElement("canvas"); c.width = 256; c.height = 320;
+  var tc = c.getContext("2d");
+  tc.clearRect(0,0,256,320);
+  tc.drawImage(base,0,0);
+  // Pain: red wash over face/head area
+  tc.globalAlpha = 0.4;
+  tc.fillStyle = "rgba(184,68,42,0.5)";
+  tc.beginPath(); tc.arc(128,48,42,0,Math.PI*2); tc.fill();
+  tc.globalAlpha = 1;
+  return c;
+}
+function genEnemyDead() {
+  var c = document.createElement("canvas"); c.width = 256; c.height = 320;
+  var tc = c.getContext("2d"); tc.clearRect(0,0,256,320); tc.globalAlpha = 0.4;
+  // Floor shadow
+  tc.fillStyle = "#1a1816";
+  tc.beginPath(); tc.ellipse(128,310,80,12,0,0,Math.PI*2); tc.fill();
+  // Scattered etching lines
+  tc.strokeStyle = "#1a1816"; tc.lineWidth = 1; tc.globalAlpha = 0.15;
+  for(var y=260;y<320;y+=3){
+    tc.beginPath();tc.moveTo(80+Math.random()*96,y);tc.lineTo(80+Math.random()*96,y);tc.stroke();
+  }
+  // Fading eye on ground
+  tc.fillStyle = "#b8442a"; tc.globalAlpha = 0.25;
+  tc.beginPath(); tc.arc(128,308,6,0,Math.PI*2); tc.fill();
+  tc.fillStyle = "#d4a843";
+  tc.beginPath(); tc.arc(128,308,3,0,Math.PI*2); tc.fill();
+  tc.globalAlpha = 1;
+  return c;
+}

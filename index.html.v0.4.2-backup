@@ -257,86 +257,153 @@ function genDoor() {
 // ─── ENEMY: Reflection (256×256) — elongated humanoid, scratchboard etched ───
 function genEnemySprite() {
   var c = document.createElement("canvas"); c.width = 256; c.height = 320;
-  var tc = c.getContext("2d");
-  tc.clearRect(0,0,256,320);
-  
-  // Body: emaciated humanoid silhouette
-  tc.fillStyle = "rgba(26,24,22,0.9)";
+  var tc = c.getContext("2d"); tc.clearRect(0,0,256,320);
+  // Body outline (emaciated figure)
+  tc.fillStyle = "#1a1816"; tc.globalAlpha = 0.9;
+  // Head
+  tc.beginPath(); tc.arc(128,48,36,0,Math.PI*2); tc.fill();
+  // Neck/torso
   tc.beginPath();
-  tc.moveTo(128, 0);  // top of head
-  // Head shape
-  tc.arc(128, 28, 28, Math.PI, 0);
-  // Shoulders
-  tc.lineTo(158, 42);
-  tc.lineTo(168, 58);
-  // Right arm down
-  tc.lineTo(172, 140);
-  tc.lineTo(162, 142);
-  tc.lineTo(158, 72);
-  // Right torso
-  tc.lineTo(152, 180);
-  tc.lineTo(148, 240);
-  // Right leg
-  tc.lineTo(150, 300);
-  tc.lineTo(142, 302);
-  tc.lineTo(138, 242);
-  // Crotch
-  tc.lineTo(128, 220);
-  tc.lineTo(118, 242);
-  // Left leg
-  tc.lineTo(114, 302);
-  tc.lineTo(106, 300);
-  tc.lineTo(108, 240);
-  // Left torso
-  tc.lineTo(104, 180);
-  tc.lineTo(98, 72);
-  // Left arm
-  tc.lineTo(94, 142);
-  tc.lineTo(84, 140);
-  tc.lineTo(88, 58);
-  // Left shoulder
-  tc.lineTo(98, 42);
-  tc.closePath();
-  tc.fill();
-  
-  // Head detail: blank face (eyes drawn dynamically)
-  tc.fillStyle = "rgba(40,36,32,0.6)";
-  tc.beginPath();
-  tc.ellipse(128, 28, 20, 24, 0, 0, Math.PI*2);
-  tc.fill();
-  
-  // Etching: scratchboard crosshatching on body
-  tc.strokeStyle = "rgba(180,170,150,0.08)";
-  tc.lineWidth = 0.5;
-  for(var y = 10; y < 250; y += 3) {
-    tc.beginPath();
-    tc.moveTo(90 + (y-10)*0.1, y);
-    tc.lineTo(166 - (y-10)*0.1, y);
-    tc.stroke();
+  tc.moveTo(115,82); tc.lineTo(141,82);
+  tc.lineTo(148,200); tc.lineTo(108,200);
+  tc.closePath(); tc.fill();
+  // Arms reaching forward
+  tc.strokeStyle = "#1a1816"; tc.lineWidth = 14; tc.lineCap = "round"; tc.globalAlpha = 0.85;
+  tc.beginPath(); tc.moveTo(115,100); tc.quadraticCurveTo(55,150,25,200); tc.stroke();
+  tc.beginPath(); tc.moveTo(141,100); tc.quadraticCurveTo(201,150,231,200); tc.stroke();
+  // Left hand fingers
+  tc.globalAlpha = 0.7;
+  tc.lineWidth = 4;
+  tc.beginPath(); tc.moveTo(25,200); tc.lineTo(14,218); tc.stroke();
+  tc.beginPath(); tc.moveTo(25,200); tc.lineTo(28,225); tc.stroke();
+  tc.beginPath(); tc.moveTo(25,200); tc.lineTo(36,220); tc.stroke();
+  // Right hand fingers
+  tc.beginPath(); tc.moveTo(231,200); tc.lineTo(242,218); tc.stroke();
+  tc.beginPath(); tc.moveTo(231,200); tc.lineTo(228,225); tc.stroke();
+  tc.beginPath(); tc.moveTo(231,200); tc.lineTo(220,220); tc.stroke();
+  tc.globalAlpha = 0.85;
+  // Legs
+  tc.lineWidth = 12;
+  tc.beginPath(); tc.moveTo(118,200); tc.lineTo(108,296); tc.lineTo(98,310); tc.stroke();
+  tc.beginPath(); tc.moveTo(138,200); tc.lineTo(148,296); tc.lineTo(158,310); tc.stroke();
+  // Feet
+  tc.lineWidth = 8;
+  tc.beginPath(); tc.moveTo(98,310); tc.lineTo(90,314); tc.stroke();
+  tc.beginPath(); tc.moveTo(158,310); tc.lineTo(166,314); tc.stroke();
+  // Etching lines on body (scratchboard texture)
+  tc.strokeStyle = "rgba(245,242,237,0.12)"; tc.lineWidth = 0.5; tc.globalAlpha = 0.12;
+  for(var y=90;y<200;y+=4){
+    tc.beginPath();tc.moveTo(114,y);tc.lineTo(142,y+Math.sin(y*0.1)*2);tc.stroke();
   }
-  // Vertical hatching
-  for(var x = 100; x < 156; x += 4) {
-    tc.beginPath();
-    tc.moveTo(x, 20);
-    tc.lineTo(x, 260);
-    tc.stroke();
+  // Crosshatch shadow on left side
+  tc.strokeStyle = "rgba(10,8,6,0.15)";
+  for(var y=85;y<200;y+=5){
+    tc.beginPath();tc.moveTo(108,y);tc.lineTo(128,y+3);tc.stroke();
   }
-  
-  return c;
-}
-function genEnemyPain() {
-  var base = genEnemySprite();
-  var c = document.createElement("canvas"); c.width = 256; c.height = 320;
-  var tc = c.getContext("2d");
-  tc.clearRect(0,0,256,320);
-  tc.drawImage(base,0,0);
-  // Pain: red wash over face/head area
-  tc.globalAlpha = 0.4;
-  tc.fillStyle = "rgba(184,68,42,0.5)";
-  tc.beginPath(); tc.arc(128,48,42,0,Math.PI*2); tc.fill();
+  // Leg hatching
+  tc.strokeStyle = "rgba(245,242,237,0.08)";
+  for(var y=204;y<310;y+=4){
+    tc.beginPath();tc.moveTo(116,y);tc.lineTo(140,y);tc.stroke();
+  }
   tc.globalAlpha = 1;
   return c;
 }
+
+
+// ─── DYNAMIC EYES: pairs of eyes with pupil tracking + eyebrows ───
+var _eyeCanvas = null;
+function genEnemyEyes(pupilX, pupilY, browRaise, dissolve) {
+  // Lazy init
+  if (!_eyeCanvas) {
+    _eyeCanvas = document.createElement("canvas");
+    _eyeCanvas.width = 160; _eyeCanvas.height = 100;
+  }
+  var c = _eyeCanvas, tc = c.getContext("2d");
+  tc.clearRect(0, 0, 160, 100);
+  var alpha = Math.max(0, 1 - (dissolve || 0) / 60);
+  tc.globalAlpha = alpha;
+  
+  // Eye positions (two eyes, left and right)
+  var eyeY = 44;
+  var leftEyeX = 108, rightEyeX = 148;
+  var eyeRx = 12, eyeRy = 8; // elliptical eyes
+  var irisR = 6, pupilR = 3;
+  
+  // Clamp pupil offset
+  var clamp = function(v, min, max) { return Math.max(min, Math.min(max, v)); };
+  var px = clamp(pupilX, -4, 4);
+  var py = clamp(pupilY, -3, 3);
+  
+  for (var eye = 0; eye < 2; eye++) {
+    var ex = eye === 0 ? leftEyeX : rightEyeX;
+    
+    // Socket (dark)
+    tc.fillStyle = "#0a0806";
+    tc.beginPath();
+    tc.ellipse(ex, eyeY, eyeRx + 2, eyeRy + 3, 0, 0, Math.PI * 2);
+    tc.fill();
+    
+    // Sclera (off-white etched)
+    tc.fillStyle = "#f5f2ed";
+    tc.beginPath();
+    tc.ellipse(ex, eyeY, eyeRx, eyeRy, 0, 0, Math.PI * 2);
+    tc.fill();
+    
+    // Iris (rust red, The Gaze signature color)
+    tc.fillStyle = "#b8442a";
+    tc.beginPath();
+    tc.arc(ex + px, eyeY + py, irisR, 0, Math.PI * 2);
+    tc.fill();
+    
+    // Pupil (dark, tracks player)
+    tc.fillStyle = "#0a0806";
+    tc.beginPath();
+    tc.arc(ex + px, eyeY + py, pupilR, 0, Math.PI * 2);
+    tc.fill();
+    
+    // Eyebrow
+    var browY = eyeY - eyeRy - 6 - browRaise;
+    tc.strokeStyle = "#f5f2ed";
+    tc.lineWidth = 2.5;
+    tc.lineCap = "round";
+    tc.globalAlpha = alpha * 0.8;
+    tc.beginPath();
+    if (eye === 0) {
+      // Left brow: angles up toward center when suspicious
+      tc.moveTo(ex - eyeRx - 2, browY + browRaise * 0.3);
+      tc.quadraticCurveTo(ex, browY - browRaise * 0.5, ex + eyeRx, browY);
+    } else {
+      // Right brow: mirrors left
+      tc.moveTo(ex + eyeRx + 2, browY + browRaise * 0.3);
+      tc.quadraticCurveTo(ex, browY - browRaise * 0.5, ex - eyeRx, browY);
+    }
+    tc.stroke();
+    tc.globalAlpha = alpha;
+  }
+  
+  // Etching lines around eyes
+  tc.strokeStyle = "rgba(245,242,237,0.1)";
+  tc.lineWidth = 0.5;
+  tc.globalAlpha = alpha * 0.1;
+  for (var yy = eyeY - 15; yy < eyeY + 15; yy += 3) {
+    tc.beginPath(); tc.moveTo(90, yy); tc.lineTo(170, yy); tc.stroke();
+  }
+  
+  tc.globalAlpha = 1;
+  return c;
+}
+// ─── ENEMY: PAIN state (red overlay) ───
+function genEnemyPain() {
+  var base = genEnemySprite();
+  var c = document.createElement("canvas"); c.width = 256; c.height = 320;
+  var tc = c.getContext("2d"); tc.clearRect(0,0,256,320); tc.drawImage(base,0,0);
+  tc.globalCompositeOperation = "source-atop";
+  tc.fillStyle = "rgba(184,68,42,0.45)"; tc.fillRect(0,0,256,320);
+  tc.globalCompositeOperation = "source-over"; tc.globalAlpha = 1;
+  return c;
+}
+
+// ─── ENEMY: DEAD (scattered lines, eye on floor) ───
 function genEnemyDead() {
   var c = document.createElement("canvas"); c.width = 256; c.height = 320;
   var tc = c.getContext("2d"); tc.clearRect(0,0,256,320); tc.globalAlpha = 0.4;
@@ -356,94 +423,6 @@ function genEnemyDead() {
   tc.globalAlpha = 1;
   return c;
 }
-// ─── DYNAMIC EYE SPRITE: pair of eyes with tracking pupils ───
-// Shared canvas reused every frame to avoid allocation
-var _eyeCanvas = null, _eyeCtx = null;
-
-function getEnemyEyeCanvas(pupilOffsetX, pupilOffsetY, browAngle) {
-  if(!_eyeCanvas) {
-    _eyeCanvas = document.createElement("canvas");
-    _eyeCanvas.width = 128; _eyeCanvas.height = 96;
-    _eyeCtx = _eyeCanvas.getContext("2d");
-  }
-  var c = _eyeCanvas, tc = _eyeCtx;
-  tc.clearRect(0, 0, 128, 96);
-  
-  // === PAIR OF EYES ===
-  var eyePositions = [
-    {cx: 40, cy: 48},  // left eye
-    {cx: 88, cy: 48},  // right eye
-  ];
-  
-  for(var i = 0; i < eyePositions.length; i++) {
-    var ex = eyePositions[i].cx, ey = eyePositions[i].cy;
-    
-    // Eye white (sclera) — off-white etched
-    tc.fillStyle = "rgba(200,195,185,0.9)";
-    tc.beginPath();
-    tc.ellipse(ex, ey, 16, 10, 0, 0, Math.PI*2);
-    tc.fill();
-    
-    // Etching outline
-    tc.strokeStyle = "rgba(180,170,150,0.5)";
-    tc.lineWidth = 1;
-    tc.beginPath();
-    tc.ellipse(ex, ey, 16, 10, 0, 0, Math.PI*2);
-    tc.stroke();
-    
-    // Iris — rust-red (sigil color)
-    tc.fillStyle = "#b8442a";
-    tc.beginPath();
-    tc.arc(ex + pupilOffsetX * 3, ey + pupilOffsetY * 3, 7, 0, Math.PI*2);
-    tc.fill();
-    
-    // Pupil — black, tracks player
-    tc.fillStyle = "#0a0806";
-    tc.beginPath();
-    tc.arc(ex + pupilOffsetX * 3, ey + pupilOffsetY * 3, 3.5, 0, Math.PI*2);
-    tc.fill();
-    
-    // Specular highlight (wet eye glow)
-    tc.fillStyle = "rgba(245,242,237,0.6)";
-    tc.beginPath();
-    tc.arc(ex + pupilOffsetX * 3 - 1.5, ey + pupilOffsetY * 3 - 1.5, 1.2, 0, Math.PI*2);
-    tc.fill();
-    
-    // === EYEBROW ===
-    tc.strokeStyle = "rgba(180,170,150,0.7)";
-    tc.lineWidth = 2.5;
-    tc.lineCap = "round";
-    tc.beginPath();
-    // Default: flat. browAngle shifts it up/down and tilts
-    // browAngle < 0: angry furrow, > 0: worried raise
-    var browY = ey - 14 - browAngle * 2;
-    var browTilt = browAngle * 0.15;
-    if(i === 0) {
-      // left brow: inner higher when browAngle > 0
-      tc.moveTo(ex - 18, browY + browTilt * 8);
-      tc.quadraticCurveTo(ex, browY - browTilt * 4, ex + 18, browY - browTilt * 4);
-    } else {
-      // right brow: mirror tilt
-      tc.moveTo(ex - 18, browY - browTilt * 4);
-      tc.quadraticCurveTo(ex, browY - browTilt * 4, ex + 18, browY + browTilt * 8);
-    }
-    tc.stroke();
-  }
-  
-  // Subtle bridge between eyes
-  tc.strokeStyle = "rgba(160,150,130,0.15)";
-  tc.lineWidth = 0.5;
-  for(var yy = 38; yy < 60; yy += 2) {
-    tc.beginPath();
-    tc.moveTo(56, yy);
-    tc.lineTo(72, yy);
-    tc.stroke();
-  }
-  
-  return c;
-}
-
-
 
 // ─── PICKUP: Desire orb ───
 function genPickup() {
@@ -492,89 +471,6 @@ try {
 } catch(e) { console.error("Texture gen failed:", e); }
 // Wait for all textures to load
 Promise.all(texturePromises).then(function() { texturesReady = true; });
-
-
-// ─── DYNAMIC EYE SPRITES: pairs of eyes with pupil tracking + eyebrows ───
-var _eyeCanvas = null, _eyeCtx = null, _eyeTexWidth = 256, _eyeTexHeight = 90;
-function genDynamicEyes(pupilOffX, pupilOffY, browRaise, dissolveProgress) {
-  // Lazy-create canvas
-  if(!_eyeCanvas) {
-    _eyeCanvas = document.createElement("canvas");
-    _eyeCanvas.width = _eyeTexWidth; _eyeCanvas.height = _eyeTexHeight;
-    _eyeCtx = _eyeCanvas.getContext("2d");
-  }
-  var c = _eyeCanvas, tc = _eyeCtx;
-  tc.clearRect(0,0,256,90);
-  
-  var alpha = Math.max(0, 1 - (dissolveProgress||0)/60);
-  
-  // === PAIR OF EYES ===
-  // Left eye: center at (106, 48), Right eye: center at (150, 48)
-  var leftEyeX = 106, rightEyeX = 150, eyeY = 48;
-  var irisR = 10, pupilR = 5, eyeW = 22, eyeH = 14;
-  
-  // Clamp pupil offset (keep inside iris)
-  var clamp = function(v, min, max){ return Math.max(min, Math.min(max, v)); };
-  var px = clamp(pupilOffX, -irisR+pupilR+1, irisR-pupilR-1);
-  var py = clamp(pupilOffY, -eyeH+2, eyeH-2);
-  
-  for(var e = 0; e < 2; e++) {
-    var ex = e === 0 ? leftEyeX : rightEyeX;
-    
-    // Dark socket (etching shadow)
-    tc.globalAlpha = alpha * 0.6;
-    tc.fillStyle = "#0a0806";
-    tc.beginPath(); tc.ellipse(ex, eyeY, eyeW+4, eyeH+4, 0, 0, Math.PI*2); tc.fill();
-    
-    // Sclera (off-white)
-    tc.globalAlpha = alpha;
-    tc.fillStyle = "#f5f2ed";
-    tc.beginPath(); tc.ellipse(ex, eyeY, eyeW, eyeH, 0, 0, Math.PI*2); tc.fill();
-    
-    // Iris (rust-red — The Gaze signature)
-    tc.fillStyle = "#b8442a";
-    tc.beginPath(); tc.arc(ex+px, eyeY+py, irisR, 0, Math.PI*2); tc.fill();
-    
-    // Iris etching ring
-    tc.strokeStyle = "rgba(180,140,80,0.3)"; tc.lineWidth = 0.7; tc.globalAlpha = alpha*0.3;
-    tc.beginPath(); tc.arc(ex+px, eyeY+py, irisR-1, 0, Math.PI*2); tc.stroke();
-    
-    // Pupil (black dot that tracks player)
-    tc.globalAlpha = alpha;
-    tc.fillStyle = "#0a0806";
-    tc.beginPath(); tc.arc(ex+px, eyeY+py, pupilR, 0, Math.PI*2); tc.fill();
-    
-    // Pupil highlight (specular glint)
-    tc.fillStyle = "rgba(245,242,237,0.5)";
-    tc.beginPath(); tc.arc(ex+px-1, eyeY+py-1, 1.5, 0, Math.PI*2); tc.fill();
-    
-    // === EYEBROW ===
-    // browRaise: negative=furrowed(threat), 0=neutral, positive=raised(surprise/watching)
-    var browY = eyeY - eyeH - 8 + browRaise;
-    var browAngle = browRaise * 0.12; // tilt when raised/furrowed
-    var browLen = 20;
-    tc.strokeStyle = "#8a7060"; tc.lineWidth = 2.5; tc.lineCap = "round"; tc.globalAlpha = alpha*0.75;
-    if(e === 0) {
-      // Left brow: outer end lower when furrowed, higher when raised
-      tc.beginPath();
-      tc.moveTo(ex - browLen, browY + browAngle*10);
-      tc.quadraticCurveTo(ex - browLen*0.3, browY - Math.abs(browAngle)*3, ex + 2, browY - browAngle*5);
-      tc.stroke();
-    } else {
-      // Right brow: mirror
-      tc.beginPath();
-      tc.moveTo(ex + browLen, browY + browAngle*10);
-      tc.quadraticCurveTo(ex + browLen*0.3, browY - Math.abs(browAngle)*3, ex - 2, browY - browAngle*5);
-      tc.stroke();
-    }
-    
-    // Etched lines under eye (tear-track shadow)
-    tc.strokeStyle = "rgba(10,8,6,0.1)"; tc.lineWidth = 0.5; tc.globalAlpha = alpha*0.1;
-    tc.beginPath(); tc.moveTo(ex-5, eyeY+eyeH+3); tc.quadraticCurveTo(ex, eyeY+eyeH+12, ex+5, eyeY+eyeH+3); tc.stroke();
-  }
-  tc.globalAlpha = 1;
-  return c;
-}
 
 // ─── MAP ───
 var MAP = [
@@ -878,140 +774,6 @@ function renderSprites(){
         ctx.drawImage(eyeTex,tX,0,1,eyeTexH,stripe,eyeDrawY,1,eyeSpriteH_screen);
         ctx.globalAlpha=1;
       }
-
-    // — DYNAMIC EYE OVERLAY: pairs of eyes with pupil tracking —
-    if(sp.type==="enemy"&&!sp.dead){
-      // Compute pupil tracking offset (enemy is looking at player)
-      var ex=sp.x, ey=sp.y;
-      var toPlayerAngle=Math.atan2(player.y-ey,player.x-ex);
-      var headAngle=toPlayerAngle;
-      var pupilOffX=Math.sin(headAngle)*6;
-      var pupilOffY=Math.cos(headAngle)*4;
-      
-      // Eyebrow position from gaze state machine
-      var browRaise=0;
-      var gs=sp.gazeState||"idle";
-      if(gs==="noticed"||gs==="watching") browRaise=8;
-      else if(gs==="dissolving") browRaise=-14+((sp.dissolveFrames||0)/60)*14;
-      else if(gs==="chase"||gs==="chase_faster") browRaise=-6;
-      else browRaise=0;
-      
-      // Generate dynamic eye texture (lazy canvas reused)
-      var eyeTex=genDynamicEyes(pupilOffX,pupilOffY,browRaise,sp.dissolveFrames||0);
-      
-      // Eye region in sprite coords: head is roughly center-top of 256x320 sprite
-      // Eyes are in texture region: x=80..176, y=24..74 (centered on head in blank-face sprite)
-      var eyeTexW=256, eyeTexH=90;
-      var eyeSpriteX1=80, eyeSpriteX2=176;  // eye region in sprite pixels
-      var eyeSpriteY1=24;                      // Y offset of eye region in sprite
-      
-      // Map to screen space using same projection math
-      var eyeScreenW=Math.floor((eyeSpriteX2-eyeSpriteX1)/eyeTexW*spriteW);
-      var eyeScreenH=Math.floor(eyeTexH/eyeTexW*spriteW);
-      var eyeScreenX=Math.floor(screenX-eyeScreenW/2);
-      var eyeScreenY=drawY+Math.floor(eyeSpriteY1/H2*spriteH);
-      
-      // Render eye overlay as 1-pixel vertical strips (same as body)
-      for(var stripe=eyeScreenX;stripe<eyeScreenX+eyeScreenW;stripe++){
-        if(stripe<0||stripe>=W)continue;
-        if(relY>ZBuffer[stripe])continue;
-        var tX=Math.floor(((stripe-eyeScreenX)/eyeScreenW)*eyeTexW);
-        if(tX<0||tX>=eyeTexW)continue;
-        var ea=1;
-        if(dist>10) ea*=Math.max(0.2,1-(dist-10)/6);
-        if(gs==="dissolving") ea*=Math.max(0.1,1-(sp.dissolveFrames||0)/60);
-        ctx.globalAlpha=ea;
-        ctx.drawImage(eyeTex,tX,0,1,eyeTexH,stripe,eyeScreenY,1,eyeScreenH);
-        ctx.globalAlpha=1;
-      }
-    
-// Eye overlay for enemies — pairs of eyes with pupil tracking
-
-    if(sp.type==="enemy") {
-
-      
-// Compute pupil offset from enemy position to player position
-
-      var eToPX = player.x - sp.x;
-
-      var eToPY = player.y - sp.y;
-
-      var eDist = Math.sqrt(eToPX*eToPX + eToPY*eToPY) || 1;
-
-      var eAngle = Math.atan2(eToPY, eToPX);
-
-      
-// Normalize to [-1,1] range for pupil offset
-
-      var pupilX = Math.cos(eAngle - player.angle) * 0.6;
-
-      var pupilY = Math.sin(eAngle - player.angle) * 0.4;
-
-      
-// Eyebrow: angle based on gaze state
-
-      var browVal = 0;
-
-      if(sp.gazeState==="noticed") browVal = 0.5;  // slight raise
-
-      else if(sp.gazeState==="watching") browVal = 1.0;  // full raise (you're watching me)
-
-      else if(sp.gazeState==="dissolving") browVal = -0.8;  // furrow/fear
-
-      else if(sp.gazeState==="chase_faster") browVal = -0.5;  // aggressive
-
-      
-// Get dynamic eye canvas
-
-      var eyeCvs = getEnemyEyeCanvas(pupilX, pupilY, browVal);
-
-      
-// Render eye overlay as strips at the HEAD position of the sprite
-
-      // Head is roughly the top 30% of the sprite
-
-      var eyeSpriteW = 128, eyeSpriteH = 96;
-
-      var headScale = 0.35;  // eye region is top ~35% of full sprite
-
-      var eyeScreenW = Math.floor(spriteW * headScale);
-
-      var eyeScreenH = Math.floor(spriteH * headScale * (eyeSpriteH/96));
-
-      var eyeStartX = Math.floor(screenX - eyeScreenW/2);
-
-      var eyeEndX = eyeStartX + eyeScreenW;
-
-      var eyeDrawY = Math.floor(H/2 - spriteH/2);  // top of sprite = head area
-
-      
-      for(var es=eyeStartX; es<eyeEndX; es++) {
-
-        if(es<0 || es>=W) continue;
-
-        if(relY > ZBuffer[stripe]) continue;
-
-        var etx = Math.floor(((es-eyeStartX)/eyeScreenW)*eyeSpriteW);
-
-        if(etx<0 || etx>=eyeSpriteW) continue;
-
-        var eyeAlpha = 1;
-
-        if(dist>10) eyeAlpha *= Math.max(0.2, 1-(dist-10)/6);
-
-        ctx.globalAlpha = eyeAlpha;
-
-        ctx.drawImage(eyeCvs, etx, 0, 1, eyeSpriteH, es, eyeDrawY, 1, eyeScreenH);
-
-        ctx.globalAlpha = 1;
-
-      }
-
-    }
-
-
-    }
-
     }
     
     // — END EYE OVERLAY —
